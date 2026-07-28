@@ -16,44 +16,53 @@
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-full flex flex-col antialiased selection:bg-emerald-200">
 
-  <!-- HEADER -->
-  <header class="bg-emerald-800 text-white shadow-md pt-safe">
-    <div class="max-w-7xl mx-auto px-4 py-3 sm:py-4 flex flex-wrap justify-between items-center gap-3">
-      <!-- Logo & Title -->
-      <div class="flex items-center space-x-3">
-        <div class="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-700/60 rounded-xl flex items-center justify-center border border-emerald-500/30 shrink-0">
-          <i class="fa-solid fa-mosque text-2xl sm:text-3xl text-emerald-300"></i>
-        </div>
-        <div>
-          <h1 class="text-lg sm:text-2xl font-extrabold tracking-wide leading-tight">MASJID AL HIDAYAH</h1>
-          <p class="text-[10px] sm:text-xs text-emerald-200 font-medium">Sistem Informasi Manajemen & Presensi Jamaah</p>
-        </div>
+<!-- HEADER MODERN & SEJAJAR POJOK KANAN ATAS -->
+<header class="bg-gradient-to-r from-emerald-900 via-emerald-800 to-teal-900 text-white shadow-lg pt-safe sticky top-0 z-40">
+  <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+    
+    <!-- Sisi Kiri: Logo & Nama Masjid -->
+    <div class="flex items-center space-x-3">
+      <div class="w-10 h-10 sm:w-12 sm:h-12 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/20 shadow-inner shrink-0">
+        <i class="fa-solid fa-mosque text-xl sm:text-2xl text-emerald-300"></i>
       </div>
-
-      <!-- Action Buttons & Hamburger Toggle Header -->
-      <div class="flex items-center space-x-2">
-        <span id="admin-badge" class="hidden px-2.5 py-1 bg-amber-400 text-slate-900 text-xs font-bold rounded-full items-center shadow-sm">
-          <i class="fa-solid fa-user-shield mr-1 text-slate-800"></i> <span id="admin-name-display" class="max-w-[100px] truncate inline-block align-bottom"></span>
-        </span>
-        
-        <button id="btn-login-modal" onclick="openLoginModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-semibold px-3 py-2 rounded-lg transition-all shadow-sm flex items-center space-x-1.5">
-          <i class="fa-solid fa-right-to-bracket"></i>
-          <span class="hidden sm:inline">Login Admin</span>
-        </button>
-        <button id="btn-admin-manage" onclick="openAddAdminModal()" title="Tambah Admin Baru" class="hidden bg-teal-600 hover:bg-teal-500 text-white text-xs sm:text-sm font-semibold px-3 py-2 rounded-lg transition-all">
-          <i class="fa-solid fa-user-plus"></i>
-        </button>
-        <button id="btn-logout" onclick="logoutAdmin()" title="Logout" class="hidden bg-rose-600 hover:bg-rose-500 text-white text-xs sm:text-sm font-semibold px-3 py-2 rounded-lg transition-all">
-          <i class="fa-solid fa-power-off"></i>
-        </button>
-
-        <!-- HAMBURGER MENU BUTTON (HANYA TAMPIL DI MOBILE) -->
-        <button id="hamburger-btn" onclick="toggleMobileMenu()" aria-label="Toggle Navigation Menu" class="md:hidden bg-emerald-700/80 hover:bg-emerald-700 text-white p-2 rounded-lg border border-emerald-600/50 focus:outline-none">
-          <i class="fa-solid fa-bars text-lg" id="hamburger-icon"></i>
-        </button>
+      <div>
+        <h1 class="text-base sm:text-xl font-extrabold tracking-wide leading-tight">MASJID AL HIDAYAH</h1>
+        <p class="text-[10px] sm:text-xs text-emerald-200/90 font-medium hidden sm:block">Sistem Informasi Manajemen & Presensi</p>
       </div>
     </div>
-  </header>
+
+    <!-- Sisi Kanan: Action Buttons & Hamburger Menu (Pojok Kanan Atas) -->
+    <div class="flex items-center space-x-2">
+      <!-- Badge Admin jika Login -->
+      <span id="admin-badge" class="hidden px-2.5 py-1 bg-amber-400 text-slate-900 text-[11px] font-bold rounded-full items-center shadow-sm">
+        <i class="fa-solid fa-user-shield mr-1"></i>
+        <span id="admin-name-display" class="max-w-[80px] sm:max-w-[120px] truncate inline-block align-bottom"></span>
+      </span>
+
+      <!-- Tombol Admin Manage (Hanya Admin Utama) -->
+      <button id="btn-admin-manage" onclick="openAddAdminModal()" title="Tambah Admin Baru" class="hidden bg-teal-600/80 hover:bg-teal-600 text-white text-xs font-semibold p-2.5 rounded-xl border border-teal-400/30 transition-all shadow-sm">
+        <i class="fa-solid fa-user-plus"></i>
+      </button>
+
+      <!-- Tombol Logout -->
+      <button id="btn-logout" onclick="logoutAdmin()" title="Logout" class="hidden bg-rose-600/80 hover:bg-rose-600 text-white text-xs font-semibold p-2.5 rounded-xl border border-rose-400/30 transition-all shadow-sm">
+        <i class="fa-solid fa-power-off"></i>
+      </button>
+
+      <!-- Tombol Login Admin -->
+      <button id="btn-login-modal" onclick="openLoginModal()" class="bg-emerald-700/80 hover:bg-emerald-600 active:scale-95 text-emerald-100 text-xs font-semibold px-3 py-2 rounded-xl border border-emerald-500/40 backdrop-blur-md transition-all shadow-sm flex items-center space-x-1.5">
+        <i class="fa-solid fa-right-to-bracket text-emerald-300"></i>
+        <span class="hidden sm:inline">Login Admin</span>
+      </button>
+
+      <!-- Tombol Hamburger Menu (Hanya Tampil di Mobile/HP) -->
+      <button id="hamburger-btn" onclick="toggleMobileMenu()" aria-label="Toggle Menu" class="md:hidden bg-emerald-700/80 hover:bg-emerald-600 active:scale-95 text-white p-2.5 rounded-xl border border-emerald-500/40 backdrop-blur-md transition-all shadow-sm flex items-center justify-center">
+        <i class="fa-solid fa-bars text-base" id="hamburger-icon"></i>
+      </button>
+    </div>
+
+  </div>
+</header>
 
   <!-- UTAMA NAVIGATION BAR (Responsive Mobile Dropdown & Desktop Flex) -->
   <nav id="main-nav" class="bg-emerald-900 text-white text-xs sm:text-sm sticky top-0 z-30 shadow-md">
