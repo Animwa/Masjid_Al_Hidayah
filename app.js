@@ -1,8 +1,8 @@
 // ==========================================
-// FRONTEND LOGIC & INTEGRASI API (ULTIMATE FIXED)
+// FRONTEND LOGIC & INTEGRASI API (BUGFIX TIMEZONE & CHART)
 // ==========================================
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwedPFvEE_cpkdKeAkEKNYLmzo4vxfbGTl1IBBTi8wjLJyqd9b26XtjEIf24CUG5HubHA/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby4HkEiK4yatFJvIn32c7I9dyYZ-Oy3NBIXr3zHJXGyOHMvoDGo0KzQO37MbDrghl2ARw/exec";
 
 let appData = {
   pengurus: [],
@@ -337,7 +337,6 @@ async function submitPresensi() {
       showMessage("Presensi berhasil disimpan!", "success");
       await loadAllData();
       
-      // Sinkronkan filter chart secara otomatis
       const chartKSelect = document.getElementById("chart-kelompok-select");
       if (chartKSelect) {
         chartKSelect.value = currentKelompok;
@@ -381,7 +380,6 @@ function renderChart() {
   const selectedKelompok = document.getElementById("chart-kelompok-select") ? document.getElementById("chart-kelompok-select").value : "Caberawit";
   const selectedKelas = document.getElementById("chart-kelas-select") ? document.getElementById("chart-kelas-select").value : "Kelas 1";
 
-  // Filter presensi murni berdasarkan Kelompok & Kelas selama 30 hari terakhir
   let dailyDataMap = {};
 
   appData.presensi.forEach(p => {
@@ -394,18 +392,20 @@ function renderChart() {
       return;
     }
 
-    // AMBIL STRING TANGGAL SECARA MURNI (Sesuai persis dengan Google Sheets, Mencegah bug pergeseran UTC-7)
+    // ESTRAKSI TANGGAL MURNI SECARA TEKS (Mencegah pergeseran timezone UTC vs Lokal/WIB)
     let rawDateStr = "";
-    if (p.Tanggal instanceof Date) {
-      const y = p.Tanggal.getFullYear();
-      const m = String(p.Tanggal.getMonth() + 1).padStart(2, '0');
-      const d = String(p.Tanggal.getDate()).padStart(2, '0');
+    if (typeof p.Tanggal === "string") {
+      rawDateStr = p.Tanggal.split("T")[0].trim();
+    } else if (p.Tanggal instanceof Date) {
+      const y = p.Tanggal.getUTCFullYear();
+      const m = String(p.Tanggal.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(p.Tanggal.getUTCDate()).padStart(2, '0');
       rawDateStr = `${y}-${m}-${d}`;
     } else {
-      rawDateStr = p.Tanggal.toString().split("T")[0].trim();
+      rawDateStr = String(p.Tanggal).substring(0, 10).trim();
     }
 
-    if (!rawDateStr) return;
+    if (!rawDateStr || rawDateStr.length < 10) return;
 
     if (!dailyDataMap[rawDateStr]) {
       dailyDataMap[rawDateStr] = { Hadir: 0, Izin: 0, Alfa: 0, Total: 0 };
@@ -429,7 +429,7 @@ function renderChart() {
   sortedDates.forEach(dateStr => {
     const parts = dateStr.split("-");
     if (parts.length === 3) {
-      labels.push(`${parts[2]}/${parts[1]}`); // Format DD/MM
+      labels.push(`${parts[2]}/${parts[1]}`); // Ambil DD/MM Murni
     } else {
       labels.push(dateStr);
     }
@@ -445,7 +445,7 @@ function renderChart() {
   if (rekapChartInstance) rekapChartInstance.destroy();
 
   if (labels.length === 0) {
-    labels = ["Belum Ada Data Presensi"];
+    labels = ["Belum Ada Data"];
     hadirData = [0];
     izinData = [0];
     alfaData = [0];
