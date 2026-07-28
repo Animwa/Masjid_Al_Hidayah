@@ -636,4 +636,4 @@ switchTab = function(tabName) {
       icon.classList.add("fa-bars");
     }
   }
-};
+}
