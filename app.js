@@ -1,8 +1,8 @@
 // ==========================================
-// FRONTEND LOGIC & INTEGRASI API (UPDATED)
+// FRONTEND LOGIC & INTEGRASI API (ULTIMATE UPDATED)
 // ==========================================
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxDcy4oZdL73L5jqiXHIjNNEHHav1pHnzuywZumATCpB9coU-Rz8g88zfXFYCppo1A2dA/exec"; // Masukkan Web App URL Anda
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwedPFvEE_cpkdKeAkEKNYLmzo4vxfbGTl1IBBTi8wjLJyqd9b26XtjEIf24CUG5HubHA/exec";
 
 let appData = {
   pengurus: [],
@@ -18,6 +18,11 @@ let currentKelas = "Kelas 1";
 let activeFormType = null;
 let rekapChartInstance = null;
 
+// Register ChartDataLabels jika plugin tersedia
+if (typeof ChartDataLabels !== 'undefined') {
+  Chart.register(ChartDataLabels);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   setDefaultDate();
   loadAllData();
@@ -28,7 +33,11 @@ function setDefaultDate() {
   const today = new Date();
   const dateInput = document.getElementById("presensi-date");
   if (dateInput) {
-    dateInput.value = today.toISOString().split("T")[0];
+    // Format YYYY-MM-DD lokal
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    dateInput.value = `${year}-${month}-${day}`;
     updateDayLabel();
   }
 }
@@ -37,7 +46,7 @@ function updateDayLabel() {
   const dateInput = document.getElementById("presensi-date").value;
   if (!dateInput) return;
   const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-  const d = new Date(dateInput);
+  const d = new Date(dateInput + "T00:00:00");
   document.getElementById("presensi-day").value = days[d.getDay()];
 }
 
@@ -63,8 +72,8 @@ function renderAllViews() {
   renderInventaris();
   renderJamaah();
   renderPresensiTable();
-  if (document.getElementById("view-rekapitulasi").classList.contains("hidden") === false) {
-    renderChart();
+  if (document.getElementById("view-rekapitulasi") && !document.getElementById("view-rekapitulasi").classList.contains("hidden")) {
+    onChartFilterChange();
   }
 }
 
@@ -72,23 +81,36 @@ function switchTab(tabName) {
   document.querySelectorAll(".view-section").forEach(s => s.classList.add("hidden"));
   document.querySelectorAll(".nav-tab").forEach(t => t.classList.remove("active"));
 
-  document.getElementById(`view-${tabName}`).classList.remove("hidden");
-  document.getElementById(`tab-${tabName}`).classList.add("active");
+  const targetView = document.getElementById(`view-${tabName}`);
+  const targetTab = document.getElementById(`tab-${tabName}`);
+  if (targetView) targetView.classList.remove("hidden");
+  if (targetTab) targetTab.classList.add("active");
 
   const subnav = document.getElementById("subnav-container");
   const classnav = document.getElementById("classnav-container");
 
   if (tabName === "kelompok") {
-    subnav.classList.remove("hidden");
-    classnav.classList.remove("hidden");
+    if (subnav) subnav.classList.remove("hidden");
+    if (classnav) classnav.classList.remove("hidden");
     selectKelompok(currentKelompok);
   } else {
-    subnav.classList.add("hidden");
-    classnav.classList.add("hidden");
+    if (subnav) subnav.classList.add("hidden");
+    if (classnav) classnav.classList.add("hidden");
   }
 
   if (tabName === "rekapitulasi") {
-    renderChart();
+    onChartFilterChange();
+  }
+
+  // Tutup menu seluler/hamburger secara otomatis setelah klik
+  const menuContainer = document.getElementById("nav-menu-container");
+  const icon = document.getElementById("hamburger-icon");
+  if (window.innerWidth < 768 && menuContainer && menuContainer.classList.contains("show-mobile-menu")) {
+    menuContainer.classList.remove("show-mobile-menu");
+    if (icon) {
+      icon.classList.remove("fa-xmark");
+      icon.classList.add("fa-bars");
+    }
   }
 }
 
@@ -104,27 +126,25 @@ function selectKelompok(kelompok) {
     "Bapak-Bapak": "sub-bapak",
     "Ibu-Ibu": "sub-ibu"
   };
-  if (idMap[kelompok]) document.getElementById(idMap[kelompok]).classList.add("active");
-
-  const classBtnContainer = document.getElementById("class-buttons");
-  classBtnContainer.innerHTML = "";
-
-  let classes = [];
-  if (kelompok === "Caberawit") {
-    classes = ["Kelas 1", "Kelas 2", "Kelas 3", "Kelas 4", "Kelas 5", "Kelas 6"];
-  } else {
-    classes = ["1 KELAS"];
+  if (idMap[kelompok] && document.getElementById(idMap[kelompok])) {
+    document.getElementById(idMap[kelompok]).classList.add("active");
   }
 
-  classes.forEach((cls, idx) => {
-    const btn = document.createElement("button");
-    btn.className = `classnav-btn px-3 py-1 rounded-md bg-white border border-slate-300 hover:bg-teal-50 text-xs ${idx === 0 ? 'active' : ''}`;
-    btn.innerText = cls;
-    btn.onclick = () => selectKelas(cls, btn);
-    classBtnContainer.appendChild(btn);
-  });
+  const classBtnContainer = document.getElementById("class-buttons");
+  if (classBtnContainer) {
+    classBtnContainer.innerHTML = "";
+    let classes = (kelompok === "Caberawit") ? ["Kelas 1", "Kelas 2", "Kelas 3", "Kelas 4", "Kelas 5", "Kelas 6"] : ["1 KELAS"];
 
-  selectKelas(classes[0]);
+    classes.forEach((cls, idx) => {
+      const btn = document.createElement("button");
+      btn.className = `classnav-btn px-3 py-1 rounded-md bg-white border border-slate-300 hover:bg-teal-50 text-xs shrink-0 ${idx === 0 ? 'active' : ''}`;
+      btn.innerText = cls;
+      btn.onclick = () => selectKelas(cls, btn);
+      classBtnContainer.appendChild(btn);
+    });
+  }
+
+  selectKelas((kelompok === "Caberawit") ? "Kelas 1" : "1 KELAS");
 }
 
 function selectKelas(kelas, btnEl) {
@@ -133,13 +153,15 @@ function selectKelas(kelas, btnEl) {
     document.querySelectorAll(".classnav-btn").forEach(b => b.classList.remove("active"));
     btnEl.classList.add("active");
   }
-  document.getElementById("presensi-class-title").innerText = `Presensi: ${currentKelompok} (${currentKelas})`;
+  const titleEl = document.getElementById("presensi-class-title");
+  if (titleEl) titleEl.innerText = `Presensi: ${currentKelompok} (${currentKelas})`;
   renderPresensiTable();
 }
 
 function calculateAge(dobString) {
   if (!dobString) return "-";
   const dob = new Date(dobString);
+  if (isNaN(dob.getTime())) return "-";
   const diffMs = Date.now() - dob.getTime();
   const ageDate = new Date(diffMs);
   return Math.abs(ageDate.getUTCFullYear() - 1970) + " Thn";
@@ -147,14 +169,15 @@ function calculateAge(dobString) {
 
 function renderPengurus() {
   const tbody = document.getElementById("table-pengurus-body");
+  if (!tbody) return;
   tbody.innerHTML = appData.pengurus.map(p => `
     <tr class="bg-white border-b hover:bg-slate-50">
-      <td class="px-6 py-4 font-semibold text-slate-800">${p.Nama}</td>
-      <td class="px-6 py-4">${p.Jabatan}</td>
-      <td class="px-6 py-4">${p.NoHP || '-'}</td>
-      <td class="px-6 py-4"><span class="px-2 py-1 rounded-full text-xs font-semibold ${p.Status === 'Aktif' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}">${p.Status}</span></td>
-      <td class="px-6 py-4 admin-only ${currentAdmin ? '' : 'hidden'}">
-        <button onclick="deleteRow('Pengurus', '${p.ID}')" class="text-rose-600 hover:text-rose-800"><i class="fa-solid fa-trash"></i></button>
+      <td class="px-4 sm:px-6 py-3.5 font-semibold text-slate-800">${p.Nama}</td>
+      <td class="px-4 sm:px-6 py-3.5">${p.Jabatan}</td>
+      <td class="px-4 sm:px-6 py-3.5">${p.NoHP || '-'}</td>
+      <td class="px-4 sm:px-6 py-3.5"><span class="px-2 py-1 rounded-full text-xs font-semibold ${p.Status === 'Aktif' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}">${p.Status}</span></td>
+      <td class="px-4 sm:px-6 py-3.5 text-center admin-only ${currentAdmin ? '' : 'hidden'}">
+        <button onclick="deleteRow('Pengurus', '${p.ID}')" class="text-rose-600 hover:text-rose-800 p-1"><i class="fa-solid fa-trash"></i></button>
       </td>
     </tr>
   `).join("");
@@ -162,52 +185,52 @@ function renderPengurus() {
 
 function renderInventaris() {
   const tbody = document.getElementById("table-inventaris-body");
+  if (!tbody) return;
   tbody.innerHTML = appData.inventaris.map(i => `
     <tr class="bg-white border-b hover:bg-slate-50">
-      <td class="px-6 py-4 font-semibold text-slate-800">${i.NamaBarang}</td>
-      <td class="px-6 py-4">${i.Jumlah}</td>
-      <td class="px-6 py-4"><span class="px-2 py-1 rounded-full text-xs font-semibold ${i.Kondisi === 'Baik' ? 'bg-teal-100 text-teal-800' : 'bg-rose-100 text-rose-800'}">${i.Kondisi}</span></td>
-      <td class="px-6 py-4">${i.TanggalMasuk || '-'}</td>
-      <td class="px-6 py-4">${i.Keterangan || '-'}</td>
-      <td class="px-6 py-4 admin-only ${currentAdmin ? '' : 'hidden'}">
-        <button onclick="deleteRow('Inventaris', '${i.ID}')" class="text-rose-600 hover:text-rose-800"><i class="fa-solid fa-trash"></i></button>
+      <td class="px-4 sm:px-6 py-3.5 font-semibold text-slate-800">${i.NamaBarang}</td>
+      <td class="px-4 sm:px-6 py-3.5">${i.Jumlah}</td>
+      <td class="px-4 sm:px-6 py-3.5"><span class="px-2 py-1 rounded-full text-xs font-semibold ${i.Kondisi === 'Baik' ? 'bg-teal-100 text-teal-800' : 'bg-rose-100 text-rose-800'}">${i.Kondisi}</span></td>
+      <td class="px-4 sm:px-6 py-3.5">${i.TanggalMasuk ? i.TanggalMasuk.toString().split("T")[0] : '-'}</td>
+      <td class="px-4 sm:px-6 py-3.5">${i.Keterangan || '-'}</td>
+      <td class="px-4 sm:px-6 py-3.5 text-center admin-only ${currentAdmin ? '' : 'hidden'}">
+        <button onclick="deleteRow('Inventaris', '${i.ID}')" class="text-rose-600 hover:text-rose-800 p-1"><i class="fa-solid fa-trash"></i></button>
       </td>
     </tr>
   `).join("");
 }
 
-// RENDER JAMAAH DENGAN TOMBOL EDIT & KELOMPOK/KELAS
 function renderJamaah() {
   const tbody = document.getElementById("table-jamaah-body");
+  if (!tbody) return;
   tbody.innerHTML = appData.jamaah.map(j => `
     <tr class="bg-white border-b hover:bg-slate-50">
-      <td class="px-4 py-3 text-xs font-mono text-slate-500">${j.ID}</td>
-      <td class="px-4 py-3 font-semibold text-slate-800">${j.Nama}</td>
-      <td class="px-4 py-3">${j.TanggalLahir ? j.TanggalLahir.toString().split("T")[0] : '-'} <span class="text-xs text-emerald-600 font-bold">(${calculateAge(j.TanggalLahir)})</span></td>
-      <td class="px-4 py-3"><span class="px-2 py-1 rounded bg-teal-50 text-teal-700 font-semibold text-xs">${j.Kelompok || 'Unassigned'}</span></td>
-      <td class="px-4 py-3"><span class="px-2 py-1 rounded bg-slate-100 text-slate-700 font-semibold text-xs">${j.Kelas || '1 KELAS'}</span></td>
-      <td class="px-4 py-3">${j.Gender || '-'}</td>
-      <td class="px-4 py-3">${j.Alamat || '-'}</td>
-      <td class="px-4 py-3"><span class="px-2 py-1 rounded-full text-xs font-semibold ${j.Status === 'Aktif' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}">${j.Status}</span></td>
-      <td class="px-4 py-3 text-center admin-only space-x-2 ${currentAdmin ? '' : 'hidden'}">
-        <button onclick="editJamaah('${j.ID}')" class="text-amber-600 hover:text-amber-800 font-semibold"><i class="fa-solid fa-pen-to-square"></i></button>
-        <button onclick="deleteRow('Jamaah', '${j.ID}')" class="text-rose-600 hover:text-rose-800"><i class="fa-solid fa-trash"></i></button>
+      <td class="px-3 sm:px-4 py-3 text-xs font-mono text-slate-500">${j.ID}</td>
+      <td class="px-3 sm:px-4 py-3 font-semibold text-slate-800">${j.Nama}</td>
+      <td class="px-3 sm:px-4 py-3 whitespace-nowrap">${j.TanggalLahir ? j.TanggalLahir.toString().split("T")[0] : '-'} <span class="text-xs text-emerald-600 font-bold">(${calculateAge(j.TanggalLahir)})</span></td>
+      <td class="px-3 sm:px-4 py-3"><span class="px-2 py-1 rounded bg-teal-50 text-teal-700 font-semibold text-xs">${j.Kelompok || 'Unassigned'}</span></td>
+      <td class="px-3 sm:px-4 py-3"><span class="px-2 py-1 rounded bg-slate-100 text-slate-700 font-semibold text-xs">${j.Kelas || '1 KELAS'}</span></td>
+      <td class="px-3 sm:px-4 py-3">${j.Gender || '-'}</td>
+      <td class="px-3 sm:px-4 py-3">${j.Alamat || '-'}</td>
+      <td class="px-3 sm:px-4 py-3"><span class="px-2 py-1 rounded-full text-xs font-semibold ${j.Status === 'Aktif' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}">${j.Status}</span></td>
+      <td class="px-3 sm:px-4 py-3 text-center admin-only space-x-2 ${currentAdmin ? '' : 'hidden'}">
+        <button onclick="editJamaah('${j.ID}')" class="text-amber-600 hover:text-amber-800 font-semibold p-1"><i class="fa-solid fa-pen-to-square"></i></button>
+        <button onclick="deleteRow('Jamaah', '${j.ID}')" class="text-rose-600 hover:text-rose-800 p-1"><i class="fa-solid fa-trash"></i></button>
       </td>
     </tr>
   `).join("");
 }
 
-// RENDER PRESENSI DENGAN FILTER KELOMPOK & KELAS TERPISAH
 function renderPresensiTable() {
-  // FILTER UTAMA: Hanya jamaah dengan Status 'Aktif' DAN Kelompok & Kelas yang SESUAI
   const filteredJamaah = appData.jamaah.filter(j => {
-    const matchStatus = j.Status === "Aktif";
-    const matchKelompok = (j.Kelompok || "Caberawit") === currentKelompok;
-    const matchKelas = (j.Kelas || "1 KELAS") === currentKelas;
+    const matchStatus = String(j.Status).trim().toLowerCase() === "aktif";
+    const matchKelompok = String(j.Kelompok || "Caberawit").trim().toLowerCase() === String(currentKelompok).trim().toLowerCase();
+    const matchKelas = String(j.Kelas || "1 KELAS").trim().toLowerCase() === String(currentKelas).trim().toLowerCase();
     return matchStatus && matchKelompok && matchKelas;
   });
 
   const tbody = document.getElementById("table-presensi-body");
+  if (!tbody) return;
 
   if (filteredJamaah.length === 0) {
     tbody.innerHTML = `
@@ -222,14 +245,14 @@ function renderPresensiTable() {
     tbody.innerHTML = filteredJamaah.map((j, idx) => `
       <tr class="bg-white border-b hover:bg-slate-50">
         <td class="px-4 py-3 font-medium text-slate-800">${j.Nama}</td>
-        <td class="px-4 py-3 text-center">
-          <input type="radio" name="presensi-${idx}" value="Hadir" checked class="w-4 h-4 text-emerald-600 focus:ring-emerald-500">
+        <td class="px-3 py-3 text-center">
+          <input type="radio" name="presensi-${idx}" value="Hadir" checked class="w-4 h-4 text-emerald-600 focus:ring-emerald-500 cursor-pointer">
         </td>
-        <td class="px-4 py-3 text-center">
-          <input type="radio" name="presensi-${idx}" value="Izin" class="w-4 h-4 text-amber-500 focus:ring-amber-500">
+        <td class="px-3 py-3 text-center">
+          <input type="radio" name="presensi-${idx}" value="Izin" class="w-4 h-4 text-amber-500 focus:ring-amber-500 cursor-pointer">
         </td>
-        <td class="px-4 py-3 text-center">
-          <input type="radio" name="presensi-${idx}" value="Alfa" class="w-4 h-4 text-rose-600 focus:ring-rose-500">
+        <td class="px-3 py-3 text-center">
+          <input type="radio" name="presensi-${idx}" value="Alfa" class="w-4 h-4 text-rose-600 focus:ring-rose-500 cursor-pointer">
         </td>
       </tr>
     `).join("");
@@ -241,23 +264,33 @@ function renderPresensiTable() {
 function updateRekapMingguan() {
   const now = new Date();
   const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
-  
+  startOfWeek.setHours(0, 0, 0, 0);
+
   let h = 0, i = 0, a = 0;
   appData.presensi.forEach(p => {
-    if (p.Kelompok === currentKelompok && p.Kelas === currentKelas) {
-      const pDate = new Date(p.Tanggal);
+    const pKel = String(p.Kelompok || "").trim().toLowerCase();
+    const pKelTarget = String(currentKelompok).trim().toLowerCase();
+    const pKls = String(p.Kelas || "").trim().toLowerCase();
+    const pKlsTarget = String(currentKelas).trim().toLowerCase();
+
+    if (pKel === pKelTarget && pKls === pKlsTarget && p.Tanggal) {
+      let pDateStr = p.Tanggal.toString().split("T")[0];
+      let pDate = new Date(pDateStr + "T00:00:00");
       if (pDate >= startOfWeek) {
-        if (p.StatusPresensi === "Hadir") h++;
-        if (p.StatusPresensi === "Izin") i++;
-        if (p.StatusPresensi === "Alfa") a++;
+        const st = String(p.StatusPresensi || "").trim();
+        if (st === "Hadir") h++;
+        else if (st === "Izin") i++;
+        else if (st === "Alfa") a++;
       }
     }
   });
 
-  document.getElementById("stat-hadir").innerText = h;
-  document.getElementById("stat-izin").innerText = i;
-  document.getElementById("stat-alfa").innerText = a;
-  document.getElementById("rekap-mingguan-title").innerText = `Rekapan Presensi Minggu Ini: ${currentKelompok} (${currentKelas})`;
+  if (document.getElementById("stat-hadir")) document.getElementById("stat-hadir").innerText = h;
+  if (document.getElementById("stat-izin")) document.getElementById("stat-izin").innerText = i;
+  if (document.getElementById("stat-alfa")) document.getElementById("stat-alfa").innerText = a;
+  if (document.getElementById("rekap-mingguan-title")) {
+    document.getElementById("rekap-mingguan-title").innerHTML = `<i class="fa-solid fa-calendar-week mr-2"></i> Rekapan Presensi Minggu Ini: ${currentKelompok} (${currentKelas})`;
+  }
 }
 
 async function submitPresensi() {
@@ -267,7 +300,10 @@ async function submitPresensi() {
   const day = document.getElementById("presensi-day").value;
 
   const filteredJamaah = appData.jamaah.filter(j => {
-    return j.Status === "Aktif" && (j.Kelompok || "Caberawit") === currentKelompok && (j.Kelas || "1 KELAS") === currentKelas;
+    const matchStatus = String(j.Status).trim().toLowerCase() === "aktif";
+    const matchKelompok = String(j.Kelompok || "Caberawit").trim().toLowerCase() === String(currentKelompok).trim().toLowerCase();
+    const matchKelas = String(j.Kelas || "1 KELAS").trim().toLowerCase() === String(currentKelas).trim().toLowerCase();
+    return matchStatus && matchKelompok && matchKelas;
   });
 
   if (filteredJamaah.length === 0) {
@@ -300,7 +336,16 @@ async function submitPresensi() {
     const json = await res.json();
     if (json.success) {
       showMessage("Presensi berhasil disimpan!", "success");
-      loadAllData();
+      await loadAllData();
+      
+      // Sinkronkan filter chart secara otomatis
+      const chartKSelect = document.getElementById("chart-kelompok-select");
+      if (chartKSelect) {
+        chartKSelect.value = currentKelompok;
+        onChartFilterChange();
+      }
+    } else {
+      showMessage("Gagal menyimpan: " + json.error, "error");
     }
   } catch (err) {
     showMessage("Gagal menyimpan presensi.", "error");
@@ -308,25 +353,18 @@ async function submitPresensi() {
 }
 
 // ==========================================
-// RENDER GRAFIK DIAGRAM GARIS (LINE CHART) DENGAN PERSENTASE
+// RENDER GRAFIK DIAGRAM GARIS (LINE CHART)
 // ==========================================
 
-// Inisialisasi Register Plugin DataLabels untuk Chart.js
-if (typeof ChartDataLabels !== 'undefined') {
-  Chart.register(ChartDataLabels);
-}
-
 function onChartFilterChange() {
-  const kVal = document.getElementById("chart-kelompok-select").value;
+  const kelompokSelect = document.getElementById("chart-kelompok-select");
   const kelasSelect = document.getElementById("chart-kelas-select");
+  if (!kelompokSelect || !kelasSelect) return;
+
+  const kVal = kelompokSelect.value;
   kelasSelect.innerHTML = "";
 
-  let options = [];
-  if (kVal === "Caberawit") {
-    options = ["Kelas 1", "Kelas 2", "Kelas 3", "Kelas 4", "Kelas 5", "Kelas 6"];
-  } else {
-    options = ["1 KELAS"];
-  }
+  let options = (kVal === "Caberawit") ? ["Kelas 1", "Kelas 2", "Kelas 3", "Kelas 4", "Kelas 5", "Kelas 6"] : ["1 KELAS"];
 
   options.forEach(opt => {
     kelasSelect.innerHTML += `<option value="${opt}">${opt}</option>`;
@@ -341,72 +379,71 @@ function renderChart() {
   
   const ctx = chartCanvas.getContext("2d");
 
-  // Ambil filter kelompok & kelas yang dipilih
   const selectedKelompok = document.getElementById("chart-kelompok-select") ? document.getElementById("chart-kelompok-select").value : "Caberawit";
   const selectedKelas = document.getElementById("chart-kelas-select") ? document.getElementById("chart-kelas-select").value : "Kelas 1";
 
-  // Tanggal 30 hari terakhir
+  // Rentang 30 hari terakhir
   const now = new Date();
-  const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+  const oneMonthAgo = new Date();
+  oneMonthAgo.setDate(now.getDate() - 30);
+  oneMonthAgo.setHours(0, 0, 0, 0);
 
-  // Filter data presensi sesuai Kelompok & Kelas selama 1 bulan terakhir
+  // Filter presensi murni berdasarkan Kelompok & Kelas
   const filteredPresensi = appData.presensi.filter(p => {
-    const pDate = new Date(p.Tanggal);
-    return (
-      (p.Kelompok || "Caberawit") === selectedKelompok &&
-      (p.Kelas || "1 KELAS") === selectedKelas &&
-      pDate >= oneMonthAgo
-    );
+    if (!p.Tanggal) return false;
+    let pDateStr = p.Tanggal.toString().split("T")[0];
+    let pDate = new Date(pDateStr + "T00:00:00");
+
+    const matchKelompok = String(p.Kelompok || "Caberawit").trim().toLowerCase() === String(selectedKelompok).trim().toLowerCase();
+    const matchKelas = String(p.Kelas || "1 KELAS").trim().toLowerCase() === String(selectedKelas).trim().toLowerCase();
+    const matchDate = pDate >= oneMonthAgo;
+
+    return matchKelompok && matchKelas && matchDate;
   });
 
-  // Kelompokkan data berdasarkan Tanggal unik
-  let dailyDataMap = {}; // { "YYYY-MM-DD": { Hadir: 0, Izin: 0, Alfa: 0, Total: 0 } }
+  let dailyDataMap = {};
 
   filteredPresensi.forEach(p => {
-    let rawDate = p.Tanggal ? p.Tanggal.toString().split("T")[0] : "";
-    if (!rawDate) return;
+    let dateStr = p.Tanggal.toString().split("T")[0];
+    if (!dateStr) return;
 
-    if (!dailyDataMap[rawDate]) {
-      dailyDataMap[rawDate] = { Hadir: 0, Izin: 0, Alfa: 0, Total: 0 };
+    if (!dailyDataMap[dateStr]) {
+      dailyDataMap[dateStr] = { Hadir: 0, Izin: 0, Alfa: 0, Total: 0 };
     }
 
-    if (p.StatusPresensi === "Hadir") dailyDataMap[rawDate].Hadir++;
-    if (p.StatusPresensi === "Izin") dailyDataMap[rawDate].Izin++;
-    if (p.StatusPresensi === "Alfa") dailyDataMap[rawDate].Alfa++;
-    dailyDataMap[rawDate].Total++;
+    const st = String(p.StatusPresensi || "").trim();
+    if (st === "Hadir") dailyDataMap[dateStr].Hadir++;
+    else if (st === "Izin") dailyDataMap[dateStr].Izin++;
+    else if (st === "Alfa") dailyDataMap[dateStr].Alfa++;
+    
+    dailyDataMap[dateStr].Total++;
   });
 
-  // Urutkan tanggal dari terlama ke terbaru
   const sortedDates = Object.keys(dailyDataMap).sort();
 
-  // Format label tanggal (DD/MM) & kalkulasi persentase
   let labels = [];
   let hadirData = [];
   let izinData = [];
   let alfaData = [];
 
   sortedDates.forEach(dateStr => {
-    const dParts = dateStr.split("-");
-    const formattedLabel = `${dParts[2]}/${dParts[1]}`; // Contoh: "29/07"
-    labels.push(formattedLabel);
+    const parts = dateStr.split("-");
+    if (parts.length === 3) {
+      labels.push(`${parts[2]}/${parts[1]}`); // DD/MM
+    } else {
+      labels.push(dateStr);
+    }
 
     const stats = dailyDataMap[dateStr];
     const total = stats.Total || 1;
 
-    // Kalkulasi persentase (%)
-    const pctHadir = Math.round((stats.Hadir / total) * 100);
-    const pctIzin = Math.round((stats.Izin / total) * 100);
-    const pctAlfa = Math.round((stats.Alfa / total) * 100);
-
-    hadirData.push(pctHadir);
-    izinData.push(pctIzin);
-    alfaData.push(pctAlfa);
+    hadirData.push(Math.round((stats.Hadir / total) * 100));
+    izinData.push(Math.round((stats.Izin / total) * 100));
+    alfaData.push(Math.round((stats.Alfa / total) * 100));
   });
 
-  // Hancurkan Chart lama jika sudah ada
   if (rekapChartInstance) rekapChartInstance.destroy();
 
-  // Jika data kosong
   if (labels.length === 0) {
     labels = ["Belum Ada Data"];
     hadirData = [0];
@@ -414,7 +451,6 @@ function renderChart() {
     alfaData = [0];
   }
 
-  // Buat Diagram Garis Baru (Line Chart)
   rekapChartInstance = new Chart(ctx, {
     type: "line",
     data: {
@@ -428,8 +464,7 @@ function renderChart() {
           borderWidth: 3,
           pointBackgroundColor: "#10b981",
           pointRadius: 5,
-          pointHoverRadius: 7,
-          tension: 0.3, // Curve halus
+          tension: 0.2,
           fill: true
         },
         {
@@ -440,8 +475,7 @@ function renderChart() {
           borderWidth: 3,
           pointBackgroundColor: "#f59e0b",
           pointRadius: 5,
-          pointHoverRadius: 7,
-          tension: 0.3,
+          tension: 0.2,
           fill: false
         },
         {
@@ -452,8 +486,7 @@ function renderChart() {
           borderWidth: 3,
           pointBackgroundColor: "#ef4444",
           pointRadius: 5,
-          pointHoverRadius: 7,
-          tension: 0.3,
+          tension: 0.2,
           fill: false
         }
       ]
@@ -462,59 +495,22 @@ function renderChart() {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: {
-          position: "top",
-          labels: { font: { family: "sans-serif", weight: "bold", size: 12 } }
-        },
-        tooltip: {
-          callbacks: {
-            label: function(context) {
-              return `${context.dataset.label}: ${context.raw}%`;
-            }
-          }
-        },
-        // INDIKATOR PERSENTASE PADA TITIK-TITIK DIAGRAM GARIS
+        legend: { position: "top" },
         datalabels: {
           anchor: "end",
           align: "top",
-          offset: 4,
-          formatter: function(value) {
-            return value > 0 ? value + "%" : ""; // Hanya tampilkan jika > 0%
-          },
-          font: {
-            size: 10,
-            weight: "bold"
-          },
-          color: function(context) {
-            return context.dataset.borderColor; // Warna teks sesuai warna garis
-          }
+          offset: 2,
+          formatter: function(val) { return val > 0 ? val + "%" : ""; },
+          font: { size: 10, weight: "bold" },
+          color: function(ctx) { return ctx.dataset.borderColor; }
         }
       },
       scales: {
-        y: {
-          beginAtZero: true,
-          max: 100, // Maksimal 100%
-          title: { display: true, text: "Persentase Kehadiran (%)", font: { size: 11 } },
-          ticks: {
-            callback: function(val) { return val + "%"; }
-          }
-        },
-        x: {
-          title: { display: true, text: "Tanggal Presensi", font: { size: 11 } }
-        }
+        y: { beginAtZero: true, max: 100, ticks: { callback: v => v + "%" } }
       }
     }
   });
 }
-
-// Panggil onChartFilterChange saat pertama kali berpindah ke tab Rekapitulasi
-const prevSwitchTabFunc = switchTab;
-switchTab = function(tabName) {
-  prevSwitchTabFunc(tabName);
-  if (tabName === "rekapitulasi") {
-    onChartFilterChange();
-  }
-};
 
 function openLoginModal() {
   document.getElementById("modal-login").classList.remove("hidden");
@@ -563,22 +559,20 @@ function updateAdminUI() {
   const adminElements = document.querySelectorAll(".admin-only");
   if (currentAdmin) {
     adminElements.forEach(el => el.classList.remove("hidden"));
-    document.getElementById("btn-login-modal").classList.add("hidden");
-    document.getElementById("btn-logout").classList.remove("hidden");
-    document.getElementById("admin-badge").classList.remove("hidden");
-    document.getElementById("admin-name-display").innerText = currentAdmin.nama;
+    if (document.getElementById("btn-login-modal")) document.getElementById("btn-login-modal").classList.add("hidden");
+    if (document.getElementById("btn-logout")) document.getElementById("btn-logout").classList.remove("hidden");
+    if (document.getElementById("admin-badge")) document.getElementById("admin-badge").classList.remove("hidden");
+    if (document.getElementById("admin-name-display")) document.getElementById("admin-name-display").innerText = currentAdmin.nama;
 
-    if (currentAdmin.role === "Utama") {
+    if (currentAdmin.role === "Utama" && document.getElementById("btn-admin-manage")) {
       document.getElementById("btn-admin-manage").classList.remove("hidden");
-    } else {
-      document.getElementById("btn-admin-manage").classList.add("hidden");
     }
   } else {
     adminElements.forEach(el => el.classList.add("hidden"));
-    document.getElementById("btn-login-modal").classList.remove("hidden");
-    document.getElementById("btn-logout").classList.add("hidden");
-    document.getElementById("admin-badge").classList.add("hidden");
-    document.getElementById("btn-admin-manage").classList.add("hidden");
+    if (document.getElementById("btn-login-modal")) document.getElementById("btn-login-modal").classList.remove("hidden");
+    if (document.getElementById("btn-logout")) document.getElementById("btn-logout").classList.add("hidden");
+    if (document.getElementById("admin-badge")) document.getElementById("admin-badge").classList.add("hidden");
+    if (document.getElementById("btn-admin-manage")) document.getElementById("btn-admin-manage").classList.add("hidden");
   }
   renderAllViews();
 }
@@ -632,7 +626,6 @@ function openFormInventaris() {
   document.getElementById("modal-form").classList.remove("hidden");
 }
 
-// FORM DYNAMIC JAMAAH (TAMBAH & EDIT)
 function openFormJamaah(data = null) {
   activeFormType = "Jamaah";
   document.getElementById("modal-form-title").innerText = data ? "Edit Data Jamaah" : "Tambah Data Jamaah";
@@ -686,17 +679,13 @@ function openFormJamaah(data = null) {
 function onKelompokChange(selectedKelas = null) {
   const kVal = document.getElementById("field-kelompok").value;
   const kelasSelect = document.getElementById("field-kelas");
+  if (!kelasSelect) return;
   kelasSelect.innerHTML = "";
 
-  let options = [];
-  if (kVal === "Caberawit") {
-    options = ["Kelas 1", "Kelas 2", "Kelas 3", "Kelas 4", "Kelas 5", "Kelas 6"];
-  } else {
-    options = ["1 KELAS"];
-  }
+  let options = (kVal === "Caberawit") ? ["Kelas 1", "Kelas 2", "Kelas 3", "Kelas 4", "Kelas 5", "Kelas 6"] : ["1 KELAS"];
 
   options.forEach(opt => {
-    const isSelected = selectedKelas === opt ? "selected" : "";
+    const isSelected = (selectedKelas === opt) ? "selected" : "";
     kelasSelect.innerHTML += `<option value="${opt}" ${isSelected}>${opt}</option>`;
   });
 }
@@ -727,6 +716,8 @@ async function handleFormSubmit(e) {
       showMessage(json.message, "success");
       closeModal("modal-form");
       loadAllData();
+    } else {
+      showMessage("Gagal menyimpan: " + json.error, "error");
     }
   } catch (err) {
     showMessage("Gagal menyimpan data.", "error");
@@ -747,6 +738,8 @@ async function deleteRow(sheetName, id) {
     if (json.success) {
       showMessage(json.message, "success");
       loadAllData();
+    } else {
+      showMessage("Gagal menghapus: " + json.error, "error");
     }
   } catch (err) {
     showMessage("Gagal menghapus data.", "error");
@@ -755,6 +748,7 @@ async function deleteRow(sheetName, id) {
 
 function showMessage(msg, type) {
   const el = document.getElementById("status-message");
+  if (!el) return;
   el.innerText = msg;
   el.classList.remove("hidden", "bg-emerald-100", "text-emerald-800", "bg-rose-100", "text-rose-800", "bg-amber-100", "text-amber-800");
 
@@ -764,10 +758,12 @@ function showMessage(msg, type) {
 }
 
 function hideMessage() {
-  document.getElementById("status-message").classList.add("hidden");
+  const el = document.getElementById("status-message");
+  if (el) el.classList.add("hidden");
 }
+
 // ==========================================
-// HAMBURGER MENU TOGGLE UNTUK SELULER
+// TOGGLE MENU HAMBURGER UNTUK LAYAR MOBILE
 // ==========================================
 function toggleMobileMenu() {
   const menuContainer = document.getElementById("nav-menu-container");
@@ -775,30 +771,14 @@ function toggleMobileMenu() {
   
   if (menuContainer) {
     menuContainer.classList.toggle("show-mobile-menu");
-    
-    // Ganti ikon garis 3 (bars) <-> silang (xmark)
-    if (menuContainer.classList.contains("show-mobile-menu")) {
-      icon.classList.remove("fa-bars");
-      icon.classList.add("fa-xmark");
-    } else {
-      icon.classList.remove("fa-xmark");
-      icon.classList.add("fa-bars");
-    }
-  }
-}
-
-// Otomatis menutup dropdown menu saat tab diklik pada layar HP
-const originalSwitchTab = switchTab;
-switchTab = function(tabName) {
-  originalSwitchTab(tabName);
-  const menuContainer = document.getElementById("nav-menu-container");
-  const icon = document.getElementById("hamburger-icon");
-  
-  if (window.innerWidth < 768 && menuContainer && menuContainer.classList.contains("show-mobile-menu")) {
-    menuContainer.classList.remove("show-mobile-menu");
     if (icon) {
-      icon.classList.remove("fa-xmark");
-      icon.classList.add("fa-bars");
+      if (menuContainer.classList.contains("show-mobile-menu")) {
+        icon.classList.remove("fa-bars");
+        icon.classList.add("fa-xmark");
+      } else {
+        icon.classList.remove("fa-xmark");
+        icon.classList.add("fa-bars");
+      }
     }
   }
 }
