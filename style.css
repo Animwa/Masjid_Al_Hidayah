@@ -39,7 +39,27 @@ img, svg, canvas {
 }
 
 /* 5. CSS MEDIA QUERIES (PENYESUAIAN UKURAN LAYAR) */
+/* ==========================================
+   STYLING HEADER POJOK KANAN ATAS
+   ========================================== */
 
+/* Efek tombol aktif saat ditekan pada layar sentuh HP */
+header button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+header button:active {
+  transform: scale(0.95);
+}
+
+/* Pastikan Tombol Hamburger & Login Sejajar secara Horisontal di HP */
+@media (max-width: 767px) {
+  header .flex.items-center.space-x-2 {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+  }
+}
 /* Media Query: Layar HP / Mobile (< 768px) */
 @media (max-width: 767px) {
   #nav-menu-container {
