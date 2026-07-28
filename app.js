@@ -1,5 +1,5 @@
 // ==========================================
-// FRONTEND LOGIC & INTEGRASI API (BUGFIX TIMEZONE & CHART)
+// FRONTEND LOGIC & INTEGRASI API (FULL CLEAN & FIXED)
 // ==========================================
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby4HkEiK4yatFJvIn32c7I9dyYZ-Oy3NBIXr3zHJXGyOHMvoDGo0KzQO37MbDrghl2ARw/exec";
@@ -392,7 +392,7 @@ function renderChart() {
       return;
     }
 
-    // ESTRAKSI TANGGAL MURNI SECARA TEKS (Mencegah pergeseran timezone UTC vs Lokal/WIB)
+    // EXTRAKSI TANGGAL MURNI DENGAN PARSING UTAS TEKS (TGL 31 TIDAK AKAN BERGESER KE 30)
     let rawDateStr = "";
     if (typeof p.Tanggal === "string") {
       rawDateStr = p.Tanggal.split("T")[0].trim();
@@ -429,7 +429,7 @@ function renderChart() {
   sortedDates.forEach(dateStr => {
     const parts = dateStr.split("-");
     if (parts.length === 3) {
-      labels.push(`${parts[2]}/${parts[1]}`); // Ambil DD/MM Murni
+      labels.push(`${parts[2]}/${parts[1]}`);
     } else {
       labels.push(dateStr);
     }
@@ -491,12 +491,12 @@ function renderChart() {
         }
       ]
     },
-options: {
+    options: {
       responsive: true,
       maintainAspectRatio: false,
       layout: {
         padding: {
-          top: 25, // Menambah ruang kosong di atas grafik agar angka 100% tidak menabrak legenda
+          top: 25, // Padding atas ekstra agar label persentase 100% tidak menabrak legenda
           bottom: 10,
           left: 10,
           right: 15
@@ -509,7 +509,7 @@ options: {
           labels: {
             boxWidth: 15,
             boxHeight: 12,
-            padding: 20, // Memberi jarak antara Legenda dan garis Grafik
+            padding: 20, // Ruang lega antara LEGENDA dan GARIS GRAFIK
             font: { family: "sans-serif", weight: "bold", size: 12 }
           }
         },
@@ -520,14 +520,12 @@ options: {
             }
           }
         },
-        // INDIKATOR PERSENTASE PADA TITIK GRAFIK (RAPI & TIDAK MENABRAK)
+        // INDIKATOR PERSENTASE PADA TITIK GRAFIK (PINTAR & RAPI)
         datalabels: {
           anchor: function(context) {
-            // Jika nilainya 100%, letakkan jangkar di tengah titik agar tidak terlalu tinggi
             return context.dataset.data[context.dataIndex] >= 100 ? "center" : "end";
           },
           align: function(context) {
-            // Jika nilainya 100%, tampilkan di bawah titik agar tidak menabrak legenda
             return context.dataset.data[context.dataIndex] >= 100 ? "bottom" : "top";
           },
           offset: 6,
@@ -546,12 +544,12 @@ options: {
       scales: {
         y: {
           beginAtZero: true,
-          suggestedMax: 115, // Dinaikkan ke 115% agar titik 100% punya ruang dan tidak menempel di batas atas
+          suggestedMax: 115, // Dinaikkan ke 115% agar titik 100% tidak menempel batas paling atas
           title: { display: true, text: "Persentase Kehadiran (%)", font: { size: 11 } },
           ticks: {
             stepSize: 20,
             callback: function(val) {
-              return val <= 100 ? val + "%" : ""; // Hanya tampilkan angka sampai 100% di garis Y
+              return val <= 100 ? val + "%" : "";
             }
           }
         },
@@ -560,6 +558,8 @@ options: {
         }
       }
     }
+  });
+}
 
 function openLoginModal() {
   document.getElementById("modal-login").classList.remove("hidden");
