@@ -491,26 +491,75 @@ function renderChart() {
         }
       ]
     },
-    options: {
+options: {
       responsive: true,
       maintainAspectRatio: false,
+      layout: {
+        padding: {
+          top: 25, // Menambah ruang kosong di atas grafik agar angka 100% tidak menabrak legenda
+          bottom: 10,
+          left: 10,
+          right: 15
+        }
+      },
       plugins: {
-        legend: { position: "top" },
+        legend: {
+          position: "top",
+          align: "center",
+          labels: {
+            boxWidth: 15,
+            boxHeight: 12,
+            padding: 20, // Memberi jarak antara Legenda dan garis Grafik
+            font: { family: "sans-serif", weight: "bold", size: 12 }
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return `${context.dataset.label}: ${context.raw}%`;
+            }
+          }
+        },
+        // INDIKATOR PERSENTASE PADA TITIK GRAFIK (RAPI & TIDAK MENABRAK)
         datalabels: {
-          anchor: "end",
-          align: "top",
-          offset: 2,
-          formatter: function(val) { return val > 0 ? val + "%" : ""; },
-          font: { size: 10, weight: "bold" },
-          color: function(ctx) { return ctx.dataset.borderColor; }
+          anchor: function(context) {
+            // Jika nilainya 100%, letakkan jangkar di tengah titik agar tidak terlalu tinggi
+            return context.dataset.data[context.dataIndex] >= 100 ? "center" : "end";
+          },
+          align: function(context) {
+            // Jika nilainya 100%, tampilkan di bawah titik agar tidak menabrak legenda
+            return context.dataset.data[context.dataIndex] >= 100 ? "bottom" : "top";
+          },
+          offset: 6,
+          formatter: function(val) {
+            return val > 0 ? val + "%" : "";
+          },
+          font: {
+            size: 11,
+            weight: "bold"
+          },
+          color: function(context) {
+            return context.dataset.borderColor;
+          }
         }
       },
       scales: {
-        y: { beginAtZero: true, max: 100, ticks: { callback: v => v + "%" } }
+        y: {
+          beginAtZero: true,
+          suggestedMax: 115, // Dinaikkan ke 115% agar titik 100% punya ruang dan tidak menempel di batas atas
+          title: { display: true, text: "Persentase Kehadiran (%)", font: { size: 11 } },
+          ticks: {
+            stepSize: 20,
+            callback: function(val) {
+              return val <= 100 ? val + "%" : ""; // Hanya tampilkan angka sampai 100% di garis Y
+            }
+          }
+        },
+        x: {
+          title: { display: true, text: "Tanggal Presensi", font: { size: 11 } }
+        }
       }
     }
-  });
-}
 
 function openLoginModal() {
   document.getElementById("modal-login").classList.remove("hidden");
