@@ -1,5 +1,5 @@
 // ==========================================
-// FRONTEND LOGIC & INTEGRASI API (ULTIMATE UPDATED)
+// FRONTEND LOGIC & INTEGRASI API (ULTIMATE FIXED)
 // ==========================================
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwedPFvEE_cpkdKeAkEKNYLmzo4vxfbGTl1IBBTi8wjLJyqd9b26XtjEIf24CUG5HubHA/exec";
@@ -33,7 +33,6 @@ function setDefaultDate() {
   const today = new Date();
   const dateInput = document.getElementById("presensi-date");
   if (dateInput) {
-    // Format YYYY-MM-DD lokal
     const year = today.getFullYear();
     const month = String(today.getMonth() + 1).padStart(2, '0');
     const day = String(today.getDate()).padStart(2, '0');
@@ -382,40 +381,27 @@ function renderChart() {
   const selectedKelompok = document.getElementById("chart-kelompok-select") ? document.getElementById("chart-kelompok-select").value : "Caberawit";
   const selectedKelas = document.getElementById("chart-kelas-select") ? document.getElementById("chart-kelas-select").value : "Kelas 1";
 
-  // Rentang 30 hari terakhir
-  const now = new Date();
-  const oneMonthAgo = new Date();
-  oneMonthAgo.setDate(now.getDate() - 30);
-  oneMonthAgo.setHours(0, 0, 0, 0);
-
-  // Filter presensi murni berdasarkan Kelompok & Kelas
-  const filteredPresensi = appData.presensi.filter(p => {
-    if (!p.Tanggal) return false;
-    let pDateStr = p.Tanggal.toString().split("T")[0];
-    let pDate = new Date(pDateStr + "T00:00:00");
-
-    const matchKelompok = String(p.Kelompok || "Caberawit").trim().toLowerCase() === String(selectedKelompok).trim().toLowerCase();
-    const matchKelas = String(p.Kelas || "1 KELAS").trim().toLowerCase() === String(selectedKelas).trim().toLowerCase();
-    const matchDate = pDate >= oneMonthAgo;
-
-    return matchKelompok && matchKelas && matchDate;
-  });
-
+  // Filter presensi murni berdasarkan Kelompok & Kelas selama 30 hari terakhir
   let dailyDataMap = {};
 
-  filteredPresensi.forEach(p => {
+  appData.presensi.forEach(p => {
     if (!p.Tanggal) return;
 
-    // AMBIL STRING TANGGAL SECARA MURNI (Mencegah pergeseran timezone UTC/Lokal)
+    const pKel = String(p.Kelompok || "Caberawit").trim().toLowerCase();
+    const pKls = String(p.Kelas || "1 KELAS").trim().toLowerCase();
+    
+    if (pKel !== String(selectedKelompok).trim().toLowerCase() || pKls !== String(selectedKelas).trim().toLowerCase()) {
+      return;
+    }
+
+    // AMBIL STRING TANGGAL SECARA MURNI (Sesuai persis dengan Google Sheets, Mencegah bug pergeseran UTC-7)
     let rawDateStr = "";
     if (p.Tanggal instanceof Date) {
-      // Jika Google Apps Script mengembalikan objek Date
       const y = p.Tanggal.getFullYear();
       const m = String(p.Tanggal.getMonth() + 1).padStart(2, '0');
       const d = String(p.Tanggal.getDate()).padStart(2, '0');
       rawDateStr = `${y}-${m}-${d}`;
     } else {
-      // Jika dikembalikan sebagai string ISO (misal: "2026-07-30T00:00:00.000Z")
       rawDateStr = p.Tanggal.toString().split("T")[0].trim();
     }
 
@@ -443,7 +429,7 @@ function renderChart() {
   sortedDates.forEach(dateStr => {
     const parts = dateStr.split("-");
     if (parts.length === 3) {
-      labels.push(`${parts[2]}/${parts[1]}`); // DD/MM
+      labels.push(`${parts[2]}/${parts[1]}`); // Format DD/MM
     } else {
       labels.push(dateStr);
     }
@@ -459,7 +445,7 @@ function renderChart() {
   if (rekapChartInstance) rekapChartInstance.destroy();
 
   if (labels.length === 0) {
-    labels = ["Belum Ada Data"];
+    labels = ["Belum Ada Data Presensi"];
     hadirData = [0];
     izinData = [0];
     alfaData = [0];
