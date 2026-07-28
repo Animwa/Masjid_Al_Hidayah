@@ -601,3 +601,39 @@ function showMessage(msg, type) {
 function hideMessage() {
   document.getElementById("status-message").classList.add("hidden");
 }
+// ==========================================
+// HAMBURGER MENU TOGGLE UNTUK SELULER
+// ==========================================
+function toggleMobileMenu() {
+  const menuContainer = document.getElementById("nav-menu-container");
+  const icon = document.getElementById("hamburger-icon");
+  
+  if (menuContainer) {
+    menuContainer.classList.toggle("show-mobile-menu");
+    
+    // Ganti ikon garis 3 (bars) <-> silang (xmark)
+    if (menuContainer.classList.contains("show-mobile-menu")) {
+      icon.classList.remove("fa-bars");
+      icon.classList.add("fa-xmark");
+    } else {
+      icon.classList.remove("fa-xmark");
+      icon.classList.add("fa-bars");
+    }
+  }
+}
+
+// Otomatis menutup dropdown menu saat tab diklik pada layar HP
+const originalSwitchTab = switchTab;
+switchTab = function(tabName) {
+  originalSwitchTab(tabName);
+  const menuContainer = document.getElementById("nav-menu-container");
+  const icon = document.getElementById("hamburger-icon");
+  
+  if (window.innerWidth < 768 && menuContainer && menuContainer.classList.contains("show-mobile-menu")) {
+    menuContainer.classList.remove("show-mobile-menu");
+    if (icon) {
+      icon.classList.remove("fa-xmark");
+      icon.classList.add("fa-bars");
+    }
+  }
+};
