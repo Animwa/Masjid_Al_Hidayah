@@ -1,41 +1,85 @@
 /* ==========================================
-   STYLE CUSTOM MASJID AL HIDAYAH
+   STYLE RESPONSIVE & CROSS-PLATFORM SYSTEM
    ========================================== */
 
-/* Transisi Halus */
-.view-section {
-  animation: fadeIn 0.3s ease-in-out;
+/* 1. Cross-OS Smooth Font Rendering */
+html, body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  touch-action: manipulation; /* Mencegah double-tap zoom di Safari/Android */
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+/* 2. Apple / Mobile Safe Area Insets (iPhone Notch & Dynamic Island) */
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* Tab Navigation Active State */
+/* 3. Hide Scrollbar pada Navigation Bar Mobile */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* 4. Navigation Tab Active States */
 .nav-tab.active {
   background-color: #047857; /* emerald-700 */
   color: #ffffff;
   font-weight: 700;
-  border-bottom: 3px solid #34d399; /* emerald-400 */
+  box-shadow: inset 0 -2px 0 0 #34d399; /* emerald-400 underline effect */
 }
 
 .subnav-btn.active {
   background-color: #059669; /* emerald-600 */
   color: #ffffff;
+  border-color: #059669;
 }
 
 .classnav-btn.active {
   background-color: #0d9488; /* teal-600 */
   color: #ffffff;
+  border-color: #0d9488;
 }
 
-/* Form Styling Focus */
-input:focus, select:focus, textarea:focus {
-  outline: none;
+/* 5. Mobile Touch-Target Friendly (Min height 44px di Layar Sentuh) */
+@media (max-width: 640px) {
+  .touch-target {
+    min-height: 40px;
+  }
+  
+  /* Perbesar Radio Button Presensi di HP */
+  input[type="radio"] {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
 }
 
-/* Custom Scrollbar */
+/* 6. Animations */
+.view-section {
+  animation: fadeIn 0.25s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleUp {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-scaleUp {
+  animation: scaleUp 0.2s ease-out forwards;
+}
+
+/* 7. Custom Scrollbar untuk Desktop */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
