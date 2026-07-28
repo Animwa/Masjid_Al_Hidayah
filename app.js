@@ -307,49 +307,214 @@ async function submitPresensi() {
   }
 }
 
-function renderChart() {
-  const ctx = document.getElementById("rekapChart").getContext("2d");
-  
-  let labels = ["Caberawit", "Pra Remaja", "Remaja", "Muda-Mudi", "Bapak-Bapak", "Ibu-Ibu"];
-  let hadirData = [0, 0, 0, 0, 0, 0];
-  let izinData = [0, 0, 0, 0, 0, 0];
-  let alfaData = [0, 0, 0, 0, 0, 0];
+// ==========================================
+// RENDER GRAFIK DIAGRAM GARIS (LINE CHART) DENGAN PERSENTASE
+// ==========================================
 
+// Inisialisasi Register Plugin DataLabels untuk Chart.js
+if (typeof ChartDataLabels !== 'undefined') {
+  Chart.register(ChartDataLabels);
+}
+
+function onChartFilterChange() {
+  const kVal = document.getElementById("chart-kelompok-select").value;
+  const kelasSelect = document.getElementById("chart-kelas-select");
+  kelasSelect.innerHTML = "";
+
+  let options = [];
+  if (kVal === "Caberawit") {
+    options = ["Kelas 1", "Kelas 2", "Kelas 3", "Kelas 4", "Kelas 5", "Kelas 6"];
+  } else {
+    options = ["1 KELAS"];
+  }
+
+  options.forEach(opt => {
+    kelasSelect.innerHTML += `<option value="${opt}">${opt}</option>`;
+  });
+
+  renderChart();
+}
+
+function renderChart() {
+  const chartCanvas = document.getElementById("rekapChart");
+  if (!chartCanvas) return;
+  
+  const ctx = chartCanvas.getContext("2d");
+
+  // Ambil filter kelompok & kelas yang dipilih
+  const selectedKelompok = document.getElementById("chart-kelompok-select") ? document.getElementById("chart-kelompok-select").value : "Caberawit";
+  const selectedKelas = document.getElementById("chart-kelas-select") ? document.getElementById("chart-kelas-select").value : "Kelas 1";
+
+  // Tanggal 30 hari terakhir
   const now = new Date();
   const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
 
-  appData.presensi.forEach(p => {
+  // Filter data presensi sesuai Kelompok & Kelas selama 1 bulan terakhir
+  const filteredPresensi = appData.presensi.filter(p => {
     const pDate = new Date(p.Tanggal);
-    if (pDate >= oneMonthAgo) {
-      const idx = labels.indexOf(p.Kelompok);
-      if (idx !== -1) {
-        if (p.StatusPresensi === "Hadir") hadirData[idx]++;
-        if (p.StatusPresensi === "Izin") izinData[idx]++;
-        if (p.StatusPresensi === "Alfa") alfaData[idx]++;
-      }
-    }
+    return (
+      (p.Kelompok || "Caberawit") === selectedKelompok &&
+      (p.Kelas || "1 KELAS") === selectedKelas &&
+      pDate >= oneMonthAgo
+    );
   });
 
+  // Kelompokkan data berdasarkan Tanggal unik
+  let dailyDataMap = {}; // { "YYYY-MM-DD": { Hadir: 0, Izin: 0, Alfa: 0, Total: 0 } }
+
+  filteredPresensi.forEach(p => {
+    let rawDate = p.Tanggal ? p.Tanggal.toString().split("T")[0] : "";
+    if (!rawDate) return;
+
+    if (!dailyDataMap[rawDate]) {
+      dailyDataMap[rawDate] = { Hadir: 0, Izin: 0, Alfa: 0, Total: 0 };
+    }
+
+    if (p.StatusPresensi === "Hadir") dailyDataMap[rawDate].Hadir++;
+    if (p.StatusPresensi === "Izin") dailyDataMap[rawDate].Izin++;
+    if (p.StatusPresensi === "Alfa") dailyDataMap[rawDate].Alfa++;
+    dailyDataMap[rawDate].Total++;
+  });
+
+  // Urutkan tanggal dari terlama ke terbaru
+  const sortedDates = Object.keys(dailyDataMap).sort();
+
+  // Format label tanggal (DD/MM) & kalkulasi persentase
+  let labels = [];
+  let hadirData = [];
+  let izinData = [];
+  let alfaData = [];
+
+  sortedDates.forEach(dateStr => {
+    const dParts = dateStr.split("-");
+    const formattedLabel = `${dParts[2]}/${dParts[1]}`; // Contoh: "29/07"
+    labels.push(formattedLabel);
+
+    const stats = dailyDataMap[dateStr];
+    const total = stats.Total || 1;
+
+    // Kalkulasi persentase (%)
+    const pctHadir = Math.round((stats.Hadir / total) * 100);
+    const pctIzin = Math.round((stats.Izin / total) * 100);
+    const pctAlfa = Math.round((stats.Alfa / total) * 100);
+
+    hadirData.push(pctHadir);
+    izinData.push(pctIzin);
+    alfaData.push(pctAlfa);
+  });
+
+  // Hancurkan Chart lama jika sudah ada
   if (rekapChartInstance) rekapChartInstance.destroy();
 
+  // Jika data kosong
+  if (labels.length === 0) {
+    labels = ["Belum Ada Data"];
+    hadirData = [0];
+    izinData = [0];
+    alfaData = [0];
+  }
+
+  // Buat Diagram Garis Baru (Line Chart)
   rekapChartInstance = new Chart(ctx, {
-    type: "bar",
+    type: "line",
     data: {
       labels: labels,
       datasets: [
-        { label: "Hadir", data: hadirData, backgroundColor: "#059669" },
-        { label: "Izin", data: izinData, backgroundColor: "#f59e0b" },
-        { label: "Alfa", data: alfaData, backgroundColor: "#e11d48" }
+        {
+          label: "Hadir (%)",
+          data: hadirData,
+          borderColor: "#10b981", // Hijau
+          backgroundColor: "rgba(16, 185, 129, 0.1)",
+          borderWidth: 3,
+          pointBackgroundColor: "#10b981",
+          pointRadius: 5,
+          pointHoverRadius: 7,
+          tension: 0.3, // Curve halus
+          fill: true
+        },
+        {
+          label: "Izin (%)",
+          data: izinData,
+          borderColor: "#f59e0b", // Kuning/Amber
+          backgroundColor: "rgba(245, 158, 11, 0.1)",
+          borderWidth: 3,
+          pointBackgroundColor: "#f59e0b",
+          pointRadius: 5,
+          pointHoverRadius: 7,
+          tension: 0.3,
+          fill: false
+        },
+        {
+          label: "Alfa (%)",
+          data: alfaData,
+          borderColor: "#ef4444", // Merah
+          backgroundColor: "rgba(239, 68, 68, 0.1)",
+          borderWidth: 3,
+          pointBackgroundColor: "#ef4444",
+          pointRadius: 5,
+          pointHoverRadius: 7,
+          tension: 0.3,
+          fill: false
+        }
       ]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { position: "top" } },
-      scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }
+      plugins: {
+        legend: {
+          position: "top",
+          labels: { font: { family: "sans-serif", weight: "bold", size: 12 } }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return `${context.dataset.label}: ${context.raw}%`;
+            }
+          }
+        },
+        // INDIKATOR PERSENTASE PADA TITIK-TITIK DIAGRAM GARIS
+        datalabels: {
+          anchor: "end",
+          align: "top",
+          offset: 4,
+          formatter: function(value) {
+            return value > 0 ? value + "%" : ""; // Hanya tampilkan jika > 0%
+          },
+          font: {
+            size: 10,
+            weight: "bold"
+          },
+          color: function(context) {
+            return context.dataset.borderColor; // Warna teks sesuai warna garis
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100, // Maksimal 100%
+          title: { display: true, text: "Persentase Kehadiran (%)", font: { size: 11 } },
+          ticks: {
+            callback: function(val) { return val + "%"; }
+          }
+        },
+        x: {
+          title: { display: true, text: "Tanggal Presensi", font: { size: 11 } }
+        }
+      }
     }
   });
 }
+
+// Panggil onChartFilterChange saat pertama kali berpindah ke tab Rekapitulasi
+const prevSwitchTabFunc = switchTab;
+switchTab = function(tabName) {
+  prevSwitchTabFunc(tabName);
+  if (tabName === "rekapitulasi") {
+    onChartFilterChange();
+  }
+};
 
 function openLoginModal() {
   document.getElementById("modal-login").classList.remove("hidden");
