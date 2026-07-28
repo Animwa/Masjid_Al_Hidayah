@@ -404,19 +404,33 @@ function renderChart() {
   let dailyDataMap = {};
 
   filteredPresensi.forEach(p => {
-    let dateStr = p.Tanggal.toString().split("T")[0];
-    if (!dateStr) return;
+    if (!p.Tanggal) return;
 
-    if (!dailyDataMap[dateStr]) {
-      dailyDataMap[dateStr] = { Hadir: 0, Izin: 0, Alfa: 0, Total: 0 };
+    // AMBIL STRING TANGGAL SECARA MURNI (Mencegah pergeseran timezone UTC/Lokal)
+    let rawDateStr = "";
+    if (p.Tanggal instanceof Date) {
+      // Jika Google Apps Script mengembalikan objek Date
+      const y = p.Tanggal.getFullYear();
+      const m = String(p.Tanggal.getMonth() + 1).padStart(2, '0');
+      const d = String(p.Tanggal.getDate()).padStart(2, '0');
+      rawDateStr = `${y}-${m}-${d}`;
+    } else {
+      // Jika dikembalikan sebagai string ISO (misal: "2026-07-30T00:00:00.000Z")
+      rawDateStr = p.Tanggal.toString().split("T")[0].trim();
+    }
+
+    if (!rawDateStr) return;
+
+    if (!dailyDataMap[rawDateStr]) {
+      dailyDataMap[rawDateStr] = { Hadir: 0, Izin: 0, Alfa: 0, Total: 0 };
     }
 
     const st = String(p.StatusPresensi || "").trim();
-    if (st === "Hadir") dailyDataMap[dateStr].Hadir++;
-    else if (st === "Izin") dailyDataMap[dateStr].Izin++;
-    else if (st === "Alfa") dailyDataMap[dateStr].Alfa++;
+    if (st === "Hadir") dailyDataMap[rawDateStr].Hadir++;
+    else if (st === "Izin") dailyDataMap[rawDateStr].Izin++;
+    else if (st === "Alfa") dailyDataMap[rawDateStr].Alfa++;
     
-    dailyDataMap[dateStr].Total++;
+    dailyDataMap[rawDateStr].Total++;
   });
 
   const sortedDates = Object.keys(dailyDataMap).sort();
