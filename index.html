@@ -2,7 +2,6 @@
 <html lang="id" class="h-full">
 <head>
   <meta charset="UTF-8">
-  <!-- Viewport dengan safe-area-inset untuk iOS & Android Notch -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Sistem Informasi Masjid Al Hidayah</title>
 
@@ -31,41 +30,47 @@
         </div>
       </div>
 
-      <!-- Action Buttons Header -->
-      <div class="flex items-center space-x-2 w-full sm:w-auto justify-end border-t border-emerald-700/50 pt-2 sm:pt-0 sm:border-t-0">
+      <!-- Action Buttons & Hamburger Toggle Header -->
+      <div class="flex items-center space-x-2">
         <span id="admin-badge" class="hidden px-2.5 py-1 bg-amber-400 text-slate-900 text-xs font-bold rounded-full items-center shadow-sm">
           <i class="fa-solid fa-user-shield mr-1 text-slate-800"></i> <span id="admin-name-display" class="max-w-[100px] truncate inline-block align-bottom"></span>
         </span>
-        <button id="btn-login-modal" onclick="openLoginModal()" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-xs sm:text-sm font-semibold px-4 py-2 rounded-lg transition-all shadow-sm flex items-center justify-center space-x-1.5 touch-target">
+        
+        <button id="btn-login-modal" onclick="openLoginModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-semibold px-3 py-2 rounded-lg transition-all shadow-sm flex items-center space-x-1.5">
           <i class="fa-solid fa-right-to-bracket"></i>
-          <span>Login Admin</span>
+          <span class="hidden sm:inline">Login Admin</span>
         </button>
-        <button id="btn-admin-manage" onclick="openAddAdminModal()" title="Tambah Admin Baru" class="hidden bg-teal-600 hover:bg-teal-500 text-white text-xs sm:text-sm font-semibold px-3 py-2 rounded-lg transition-all touch-target">
+        <button id="btn-admin-manage" onclick="openAddAdminModal()" title="Tambah Admin Baru" class="hidden bg-teal-600 hover:bg-teal-500 text-white text-xs sm:text-sm font-semibold px-3 py-2 rounded-lg transition-all">
           <i class="fa-solid fa-user-plus"></i>
         </button>
-        <button id="btn-logout" onclick="logoutAdmin()" title="Logout" class="hidden bg-rose-600 hover:bg-rose-500 text-white text-xs sm:text-sm font-semibold px-3 py-2 rounded-lg transition-all touch-target">
+        <button id="btn-logout" onclick="logoutAdmin()" title="Logout" class="hidden bg-rose-600 hover:bg-rose-500 text-white text-xs sm:text-sm font-semibold px-3 py-2 rounded-lg transition-all">
           <i class="fa-solid fa-power-off"></i>
+        </button>
+
+        <!-- HAMBURGER MENU BUTTON (HANYA TAMPIL DI MOBILE) -->
+        <button id="hamburger-btn" onclick="toggleMobileMenu()" aria-label="Toggle Navigation Menu" class="md:hidden bg-emerald-700/80 hover:bg-emerald-700 text-white p-2 rounded-lg border border-emerald-600/50 focus:outline-none">
+          <i class="fa-solid fa-bars text-lg" id="hamburger-icon"></i>
         </button>
       </div>
     </div>
   </header>
 
-  <!-- UTAMA NAVIGATION BAR (Responsive Horizontal Scroll) -->
-  <nav class="bg-emerald-900 text-white text-xs sm:text-sm sticky top-0 z-20 shadow-md">
-    <div class="max-w-7xl mx-auto flex space-x-1 px-2 py-1.5 overflow-x-auto no-scrollbar scroll-smooth">
-      <button onclick="switchTab('pengurus')" class="nav-tab shrink-0 px-3.5 py-2 rounded-lg font-medium hover:bg-emerald-800/80 transition-all flex items-center space-x-1.5" id="tab-pengurus">
+  <!-- UTAMA NAVIGATION BAR (Responsive Mobile Dropdown & Desktop Flex) -->
+  <nav id="main-nav" class="bg-emerald-900 text-white text-xs sm:text-sm sticky top-0 z-30 shadow-md">
+    <div id="nav-menu-container" class="max-w-7xl mx-auto flex flex-col md:flex-row md:space-x-1 p-2">
+      <button onclick="switchTab('pengurus')" class="nav-tab px-3.5 py-2 rounded-lg font-medium hover:bg-emerald-800/80 transition-all flex items-center space-x-2" id="tab-pengurus">
         <i class="fa-solid fa-users-gear"></i><span>Pengurus</span>
       </button>
-      <button onclick="switchTab('inventaris')" class="nav-tab shrink-0 px-3.5 py-2 rounded-lg font-medium hover:bg-emerald-800/80 transition-all flex items-center space-x-1.5" id="tab-inventaris">
+      <button onclick="switchTab('inventaris')" class="nav-tab px-3.5 py-2 rounded-lg font-medium hover:bg-emerald-800/80 transition-all flex items-center space-x-2" id="tab-inventaris">
         <i class="fa-solid fa-boxes-stacked"></i><span>Inventaris</span>
       </button>
-      <button onclick="switchTab('jamaah')" class="nav-tab shrink-0 px-3.5 py-2 rounded-lg font-medium hover:bg-emerald-800/80 transition-all flex items-center space-x-1.5" id="tab-jamaah">
+      <button onclick="switchTab('jamaah')" class="nav-tab px-3.5 py-2 rounded-lg font-medium hover:bg-emerald-800/80 transition-all flex items-center space-x-2" id="tab-jamaah">
         <i class="fa-solid fa-id-card"></i><span>Data Jamaah</span>
       </button>
-      <button onclick="switchTab('kelompok')" class="nav-tab shrink-0 px-3.5 py-2 rounded-lg font-medium hover:bg-emerald-800/80 transition-all flex items-center space-x-1.5" id="tab-kelompok">
+      <button onclick="switchTab('kelompok')" class="nav-tab px-3.5 py-2 rounded-lg font-medium hover:bg-emerald-800/80 transition-all flex items-center space-x-2" id="tab-kelompok">
         <i class="fa-solid fa-people-group"></i><span>Presensi Kelas Usia</span>
       </button>
-      <button onclick="switchTab('rekapitulasi')" class="nav-tab shrink-0 px-3.5 py-2 rounded-lg font-medium hover:bg-emerald-800/80 transition-all flex items-center space-x-1.5" id="tab-rekapitulasi">
+      <button onclick="switchTab('rekapitulasi')" class="nav-tab px-3.5 py-2 rounded-lg font-medium hover:bg-emerald-800/80 transition-all flex items-center space-x-2" id="tab-rekapitulasi">
         <i class="fa-solid fa-chart-pie"></i><span>Rekapitulasi & Grafik</span>
       </button>
     </div>
@@ -97,7 +102,6 @@
   <!-- MAIN CONTENT CONTAINER -->
   <main class="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 flex-grow w-full">
 
-    <!-- ALERT BANNER -->
     <div id="status-message" class="hidden mb-4 p-3.5 sm:p-4 rounded-xl font-medium text-xs sm:text-sm border shadow-sm transition-all duration-300 flex items-center justify-between"></div>
 
     <!-- VIEW 1: PENGURUS -->
@@ -107,7 +111,7 @@
           <h2 class="text-lg sm:text-xl font-bold text-slate-800 flex items-center"><i class="fa-solid fa-sitemap text-emerald-700 mr-2"></i>Susunan Pengurus Masjid</h2>
           <p class="text-xs text-slate-500 hidden sm:block">Daftar struktur kepengurusan aktif Masjid Al Hidayah.</p>
         </div>
-        <button onclick="openFormPengurus()" class="admin-only hidden w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2.5 rounded-lg shadow-sm transition-all flex items-center justify-center space-x-1.5 touch-target">
+        <button onclick="openFormPengurus()" class="admin-only hidden w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2.5 rounded-lg shadow-sm transition-all flex items-center justify-center space-x-1.5">
           <i class="fa-solid fa-plus"></i><span>Tambah Pengurus</span>
         </button>
       </div>
@@ -136,7 +140,7 @@
           <h2 class="text-lg sm:text-xl font-bold text-slate-800 flex items-center"><i class="fa-solid fa-boxes-packing text-emerald-700 mr-2"></i>Inventaris Alat & Barang</h2>
           <p class="text-xs text-slate-500 hidden sm:block">Data aset dan peralatan operasional masjid.</p>
         </div>
-        <button onclick="openFormInventaris()" class="admin-only hidden w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2.5 rounded-lg shadow-sm transition-all flex items-center justify-center space-x-1.5 touch-target">
+        <button onclick="openFormInventaris()" class="admin-only hidden w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2.5 rounded-lg shadow-sm transition-all flex items-center justify-center space-x-1.5">
           <i class="fa-solid fa-plus"></i><span>Tambah Barang</span>
         </button>
       </div>
@@ -166,7 +170,7 @@
           <h2 class="text-lg sm:text-xl font-bold text-slate-800 flex items-center"><i class="fa-solid fa-users text-emerald-700 mr-2"></i>Database Jamaah Masjid</h2>
           <p class="text-xs text-slate-500 hidden sm:block">Data registrasi seluruh jamaah beserta pengelompokan usianya.</p>
         </div>
-        <button onclick="openFormJamaah()" class="admin-only hidden w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2.5 rounded-lg shadow-sm transition-all flex items-center justify-center space-x-1.5 touch-target">
+        <button onclick="openFormJamaah()" class="admin-only hidden w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2.5 rounded-lg shadow-sm transition-all flex items-center justify-center space-x-1.5">
           <i class="fa-solid fa-user-plus"></i><span>Tambah Jamaah</span>
         </button>
       </div>
@@ -194,12 +198,13 @@
 
     <!-- VIEW 4: PRESENSI KELOMPOK USIA -->
     <section id="view-kelompok" class="view-section hidden space-y-4">
-      <!-- REKAPITULASI MINGGUAN TOP WIDGET -->
+      <!-- REKAPITULASI MINGGUAN (GRID LAYOUT) -->
       <div class="bg-gradient-to-br from-emerald-800 via-emerald-900 to-teal-900 rounded-2xl p-4 sm:p-5 text-white shadow-md">
         <h3 class="text-xs sm:text-sm font-semibold uppercase tracking-wider text-emerald-200 mb-3 flex items-center" id="rekap-mingguan-title">
           <i class="fa-solid fa-calendar-week mr-2"></i> Rekapan Presensi Minggu Ini
         </h3>
-        <div class="grid grid-cols-3 gap-2 sm:gap-4 text-center">
+        <!-- CSS Grid untuk 3 statistik -->
+        <div class="stat-grid text-center">
           <div class="bg-white/10 rounded-xl p-2.5 sm:p-3 backdrop-blur-md border border-white/10">
             <p class="text-xl sm:text-3xl font-extrabold text-emerald-300" id="stat-hadir">0</p>
             <p class="text-[10px] sm:text-xs font-medium text-emerald-100">Hadir</p>
@@ -215,7 +220,6 @@
         </div>
       </div>
 
-      <!-- FORM PRESENSI TIAP HARI -->
       <div class="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 space-y-4">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b pb-4">
           <div>
@@ -249,7 +253,7 @@
         </div>
 
         <div class="admin-only hidden flex justify-end pt-3">
-          <button onclick="submitPresensi()" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs sm:text-sm px-6 py-2.5 rounded-lg shadow-md transition-all flex items-center justify-center space-x-2 touch-target">
+          <button onclick="submitPresensi()" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs sm:text-sm px-6 py-2.5 rounded-lg shadow-md transition-all flex items-center justify-center space-x-2">
             <i class="fa-solid fa-floppy-disk"></i>
             <span>Simpan Presensi Hari Ini</span>
           </button>
@@ -257,12 +261,14 @@
       </div>
     </section>
 
-    <!-- VIEW 5: REKAPITULASI & GRAFIK (CHART.JS) -->
+    <!-- VIEW 5: REKAPITULASI & GRAFIK (FLUID GRAPHICS) -->
     <section id="view-rekapitulasi" class="view-section hidden space-y-4">
       <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-200">
         <h2 class="text-lg sm:text-xl font-bold text-slate-800 mb-1 flex items-center"><i class="fa-solid fa-chart-line text-emerald-700 mr-2"></i>Statistik Kehadiran 1 Bulan Terakhir</h2>
         <p class="text-xs text-slate-500 mb-4 sm:mb-6">Akumulasi kehadiran per kelompok usia dalam 30 hari terakhir.</p>
-        <div class="relative w-full h-64 sm:h-80 md:h-96">
+        
+        <!-- Fluid Canvas Container -->
+        <div class="chart-container">
           <canvas id="rekapChart"></canvas>
         </div>
       </div>
@@ -270,9 +276,7 @@
 
   </main>
 
-  <!-- MODAL CONTAINER (RESPONSIVE POPUP) -->
-  
-  <!-- MODAL LOGIN ADMIN -->
+  <!-- MODALS -->
   <div id="modal-login" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 hidden">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm sm:max-w-md p-5 sm:p-6 space-y-4 animate-scaleUp">
       <div class="flex justify-between items-center border-b pb-3">
@@ -296,7 +300,6 @@
     </div>
   </div>
 
-  <!-- MODAL TAMBAH ADMIN (UTAMA ONLY) -->
   <div id="modal-add-admin" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 hidden">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm sm:max-w-md p-5 sm:p-6 space-y-4 animate-scaleUp">
       <div class="flex justify-between items-center border-b pb-3">
@@ -320,7 +323,6 @@
     </div>
   </div>
 
-  <!-- MODAL GENERIC FORM (PENGURUS / INVENTARIS / JAMAAH) -->
   <div id="modal-form" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 hidden">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-5 sm:p-6 space-y-4 max-h-[85vh] flex flex-col animate-scaleUp">
       <div class="flex justify-between items-center border-b pb-3 shrink-0">
@@ -337,7 +339,7 @@
     </div>
   </div>
 
-  <!-- FOOTER (Safe Area Bottom for Mobile) -->
+  <!-- FOOTER -->
   <footer class="bg-slate-800 text-slate-400 text-[11px] sm:text-xs py-5 border-t border-slate-700 mt-auto pb-safe">
     <div class="max-w-7xl mx-auto px-4 text-center space-y-1">
       <p>&copy; 2026 Masjid Al Hidayah. Seluruh hak cipta dilindungi.</p>
