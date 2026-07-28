@@ -1,11 +1,9 @@
 // ==========================================
-// FRONTEND LOGIC & INTEGRASI API
+// FRONTEND LOGIC & INTEGRASI API (UPDATED)
 // ==========================================
 
-// CONSTANTS - PASTE URL WEB APP APPS SCRIPT DI SINI
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzg9UD1qH8chQt0QJczhuRUyDModtTa5wCMwRe6qcsg5ztQ82VPbFJQebHzfKo212943Q/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxDcy4oZdL73L5jqiXHIjNNEHHav1pHnzuywZumATCpB9coU-Rz8g88zfXFYCppo1A2dA/exec"; // Masukkan Web App URL Anda
 
-// STATE SEMENTARA
 let appData = {
   pengurus: [],
   inventaris: [],
@@ -14,13 +12,12 @@ let appData = {
   admins: []
 };
 
-let currentAdmin = null; // { nama, role, pin }
+let currentAdmin = null;
 let currentKelompok = "Caberawit";
 let currentKelas = "Kelas 1";
 let activeFormType = null;
 let rekapChartInstance = null;
 
-// INIT SITE
 document.addEventListener("DOMContentLoaded", () => {
   setDefaultDate();
   loadAllData();
@@ -44,7 +41,6 @@ function updateDayLabel() {
   document.getElementById("presensi-day").value = days[d.getDay()];
 }
 
-// FETCH DATA DARI BACKEND
 async function loadAllData() {
   showMessage("Memuat data dari Google Sheets...", "info");
   try {
@@ -62,7 +58,6 @@ async function loadAllData() {
   }
 }
 
-// RENDER ALL VIEWS
 function renderAllViews() {
   renderPengurus();
   renderInventaris();
@@ -73,7 +68,6 @@ function renderAllViews() {
   }
 }
 
-// SWITCH TAB NAVIGATION
 function switchTab(tabName) {
   document.querySelectorAll(".view-section").forEach(s => s.classList.add("hidden"));
   document.querySelectorAll(".nav-tab").forEach(t => t.classList.remove("active"));
@@ -98,7 +92,6 @@ function switchTab(tabName) {
   }
 }
 
-// SUBNAV KELOMPOK USIA & KELAS
 function selectKelompok(kelompok) {
   currentKelompok = kelompok;
   document.querySelectorAll(".subnav-btn").forEach(b => b.classList.remove("active"));
@@ -144,16 +137,14 @@ function selectKelas(kelas, btnEl) {
   renderPresensiTable();
 }
 
-// UMUR OTOMATIS
 function calculateAge(dobString) {
   if (!dobString) return "-";
   const dob = new Date(dobString);
   const diffMs = Date.now() - dob.getTime();
   const ageDate = new Date(diffMs);
-  return Math.abs(ageDate.getUTCFullYear() - 1970) + " Tahun";
+  return Math.abs(ageDate.getUTCFullYear() - 1970) + " Thn";
 }
 
-// RENDER PENGURUS
 function renderPengurus() {
   const tbody = document.getElementById("table-pengurus-body");
   tbody.innerHTML = appData.pengurus.map(p => `
@@ -169,7 +160,6 @@ function renderPengurus() {
   `).join("");
 }
 
-// RENDER INVENTARIS
 function renderInventaris() {
   const tbody = document.getElementById("table-inventaris-body");
   tbody.innerHTML = appData.inventaris.map(i => `
@@ -186,44 +176,64 @@ function renderInventaris() {
   `).join("");
 }
 
-// RENDER JAMAAH
+// RENDER JAMAAH DENGAN TOMBOL EDIT & KELOMPOK/KELAS
 function renderJamaah() {
   const tbody = document.getElementById("table-jamaah-body");
   tbody.innerHTML = appData.jamaah.map(j => `
     <tr class="bg-white border-b hover:bg-slate-50">
-      <td class="px-6 py-4 text-xs font-mono text-slate-500">${j.ID}</td>
-      <td class="px-6 py-4 font-semibold text-slate-800">${j.Nama}</td>
-      <td class="px-6 py-4">${j.TanggalLahir || '-'}</td>
-      <td class="px-6 py-4 font-bold text-emerald-700">${calculateAge(j.TanggalLahir)}</td>
-      <td class="px-6 py-4">${j.Gender || '-'}</td>
-      <td class="px-6 py-4">${j.Alamat || '-'}</td>
-      <td class="px-6 py-4"><span class="px-2 py-1 rounded-full text-xs font-semibold ${j.Status === 'Aktif' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}">${j.Status}</span></td>
-      <td class="px-6 py-4 admin-only ${currentAdmin ? '' : 'hidden'}">
+      <td class="px-4 py-3 text-xs font-mono text-slate-500">${j.ID}</td>
+      <td class="px-4 py-3 font-semibold text-slate-800">${j.Nama}</td>
+      <td class="px-4 py-3">${j.TanggalLahir ? j.TanggalLahir.toString().split("T")[0] : '-'} <span class="text-xs text-emerald-600 font-bold">(${calculateAge(j.TanggalLahir)})</span></td>
+      <td class="px-4 py-3"><span class="px-2 py-1 rounded bg-teal-50 text-teal-700 font-semibold text-xs">${j.Kelompok || 'Unassigned'}</span></td>
+      <td class="px-4 py-3"><span class="px-2 py-1 rounded bg-slate-100 text-slate-700 font-semibold text-xs">${j.Kelas || '1 KELAS'}</span></td>
+      <td class="px-4 py-3">${j.Gender || '-'}</td>
+      <td class="px-4 py-3">${j.Alamat || '-'}</td>
+      <td class="px-4 py-3"><span class="px-2 py-1 rounded-full text-xs font-semibold ${j.Status === 'Aktif' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}">${j.Status}</span></td>
+      <td class="px-4 py-3 text-center admin-only space-x-2 ${currentAdmin ? '' : 'hidden'}">
+        <button onclick="editJamaah('${j.ID}')" class="text-amber-600 hover:text-amber-800 font-semibold"><i class="fa-solid fa-pen-to-square"></i></button>
         <button onclick="deleteRow('Jamaah', '${j.ID}')" class="text-rose-600 hover:text-rose-800"><i class="fa-solid fa-trash"></i></button>
       </td>
     </tr>
   `).join("");
 }
 
-// RENDER PRESENSI & REKAP MINGGUAN
+// RENDER PRESENSI DENGAN FILTER KELOMPOK & KELAS TERPISAH
 function renderPresensiTable() {
-  const filteredJamaah = appData.jamaah.filter(j => j.Status === "Aktif");
+  // FILTER UTAMA: Hanya jamaah dengan Status 'Aktif' DAN Kelompok & Kelas yang SESUAI
+  const filteredJamaah = appData.jamaah.filter(j => {
+    const matchStatus = j.Status === "Aktif";
+    const matchKelompok = (j.Kelompok || "Caberawit") === currentKelompok;
+    const matchKelas = (j.Kelas || "1 KELAS") === currentKelas;
+    return matchStatus && matchKelompok && matchKelas;
+  });
+
   const tbody = document.getElementById("table-presensi-body");
 
-  tbody.innerHTML = filteredJamaah.map((j, idx) => `
-    <tr class="bg-white border-b hover:bg-slate-50">
-      <td class="px-4 py-3 font-medium text-slate-800">${j.Nama}</td>
-      <td class="px-4 py-3 text-center">
-        <input type="radio" name="presensi-${idx}" value="Hadir" checked class="w-4 h-4 text-emerald-600 focus:ring-emerald-500">
-      </td>
-      <td class="px-4 py-3 text-center">
-        <input type="radio" name="presensi-${idx}" value="Izin" class="w-4 h-4 text-amber-500 focus:ring-amber-500">
-      </td>
-      <td class="px-4 py-3 text-center">
-        <input type="radio" name="presensi-${idx}" value="Alfa" class="w-4 h-4 text-rose-600 focus:ring-rose-500">
-      </td>
-    </tr>
-  `).join("");
+  if (filteredJamaah.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="4" class="px-4 py-6 text-center text-slate-400 italic">
+          Belum ada jamaah yang terdaftar di kelompok <b>${currentKelompok} (${currentKelas})</b>.<br>
+          <span class="text-xs text-slate-500">Buka menu <b>Data Jamaah</b> untuk menambahkan atau menyesuaikan kelas jamaah.</span>
+        </td>
+      </tr>
+    `;
+  } else {
+    tbody.innerHTML = filteredJamaah.map((j, idx) => `
+      <tr class="bg-white border-b hover:bg-slate-50">
+        <td class="px-4 py-3 font-medium text-slate-800">${j.Nama}</td>
+        <td class="px-4 py-3 text-center">
+          <input type="radio" name="presensi-${idx}" value="Hadir" checked class="w-4 h-4 text-emerald-600 focus:ring-emerald-500">
+        </td>
+        <td class="px-4 py-3 text-center">
+          <input type="radio" name="presensi-${idx}" value="Izin" class="w-4 h-4 text-amber-500 focus:ring-amber-500">
+        </td>
+        <td class="px-4 py-3 text-center">
+          <input type="radio" name="presensi-${idx}" value="Alfa" class="w-4 h-4 text-rose-600 focus:ring-rose-500">
+        </td>
+      </tr>
+    `).join("");
+  }
 
   updateRekapMingguan();
 }
@@ -250,13 +260,19 @@ function updateRekapMingguan() {
   document.getElementById("rekap-mingguan-title").innerText = `Rekapan Presensi Minggu Ini: ${currentKelompok} (${currentKelas})`;
 }
 
-// SUBMIT PRESENSI
 async function submitPresensi() {
   if (!currentAdmin) return alert("Akses Admin diperlukan!");
   
   const date = document.getElementById("presensi-date").value;
   const day = document.getElementById("presensi-day").value;
-  const filteredJamaah = appData.jamaah.filter(j => j.Status === "Aktif");
+
+  const filteredJamaah = appData.jamaah.filter(j => {
+    return j.Status === "Aktif" && (j.Kelompok || "Caberawit") === currentKelompok && (j.Kelas || "1 KELAS") === currentKelas;
+  });
+
+  if (filteredJamaah.length === 0) {
+    return alert("Tidak ada jamaah di kelas ini untuk disimpan presensinya.");
+  }
 
   const records = [];
   filteredJamaah.forEach((j, idx) => {
@@ -291,7 +307,6 @@ async function submitPresensi() {
   }
 }
 
-// CHART.JS RENDER
 function renderChart() {
   const ctx = document.getElementById("rekapChart").getContext("2d");
   
@@ -336,7 +351,6 @@ function renderChart() {
   });
 }
 
-// LOGICAL ADMIN LOGIN & AUTH
 function openLoginModal() {
   document.getElementById("modal-login").classList.remove("hidden");
 }
@@ -426,7 +440,6 @@ async function handleAddAdmin(e) {
   }
 }
 
-// DYNAMIC FORM MODALS FOR PENGURUS / INVENTARIS / JAMAAH
 function openFormPengurus() {
   activeFormType = "Pengurus";
   document.getElementById("modal-form-title").innerText = "Tambah Data Pengurus";
@@ -454,18 +467,80 @@ function openFormInventaris() {
   document.getElementById("modal-form").classList.remove("hidden");
 }
 
-function openFormJamaah() {
+// FORM DYNAMIC JAMAAH (TAMBAH & EDIT)
+function openFormJamaah(data = null) {
   activeFormType = "Jamaah";
-  document.getElementById("modal-form-title").innerText = "Tambah Data Jamaah";
+  document.getElementById("modal-form-title").innerText = data ? "Edit Data Jamaah" : "Tambah Data Jamaah";
+  
+  const formattedDob = data && data.TanggalLahir ? data.TanggalLahir.toString().split("T")[0] : "";
+
   document.getElementById("modal-form-fields").innerHTML = `
-    <input type="hidden" name="ID" value="">
-    <div><label class="block text-xs font-semibold mb-1">Nama Lengkap</label><input type="text" name="Nama" required class="w-full border rounded px-3 py-1.5 text-sm"></div>
-    <div><label class="block text-xs font-semibold mb-1">Tanggal Lahir</label><input type="date" name="TanggalLahir" required class="w-full border rounded px-3 py-1.5 text-sm"></div>
-    <div><label class="block text-xs font-semibold mb-1">Gender</label><select name="Gender" class="w-full border rounded px-3 py-1.5 text-sm"><option>Laki-Laki</option><option>Perempuan</option></select></div>
-    <div><label class="block text-xs font-semibold mb-1">Alamat</label><textarea name="Alamat" class="w-full border rounded px-3 py-1.5 text-sm"></textarea></div>
-    <div><label class="block text-xs font-semibold mb-1">Status</label><select name="Status" class="w-full border rounded px-3 py-1.5 text-sm"><option>Aktif</option><option>Pindah/Non-Aktif</option></select></div>
+    <input type="hidden" name="ID" value="${data ? data.ID : ''}">
+    <div><label class="block text-xs font-semibold mb-1">Nama Lengkap</label><input type="text" name="Nama" value="${data ? data.Nama : ''}" required class="w-full border rounded px-3 py-1.5 text-sm"></div>
+    <div><label class="block text-xs font-semibold mb-1">Tanggal Lahir</label><input type="date" name="TanggalLahir" value="${formattedDob}" required class="w-full border rounded px-3 py-1.5 text-sm"></div>
+    
+    <div>
+      <label class="block text-xs font-semibold mb-1">Kelompok Usia</label>
+      <select name="Kelompok" id="field-kelompok" onchange="onKelompokChange()" class="w-full border rounded px-3 py-1.5 text-sm">
+        <option value="Caberawit" ${data && data.Kelompok === 'Caberawit' ? 'selected' : ''}>Caberawit (SD)</option>
+        <option value="Pra Remaja" ${data && data.Kelompok === 'Pra Remaja' ? 'selected' : ''}>Pra Remaja (SMP)</option>
+        <option value="Remaja" ${data && data.Kelompok === 'Remaja' ? 'selected' : ''}>Remaja (SMA)</option>
+        <option value="Muda-Mudi" ${data && data.Kelompok === 'Muda-Mudi' ? 'selected' : ''}>Muda-Mudi</option>
+        <option value="Bapak-Bapak" ${data && data.Kelompok === 'Bapak-Bapak' ? 'selected' : ''}>Bapak-Bapak</option>
+        <option value="Ibu-Ibu" ${data && data.Kelompok === 'Ibu-Ibu' ? 'selected' : ''}>Ibu-Ibu</option>
+      </select>
+    </div>
+
+    <div>
+      <label class="block text-xs font-semibold mb-1">Kelas</label>
+      <select name="Kelas" id="field-kelas" class="w-full border rounded px-3 py-1.5 text-sm"></select>
+    </div>
+
+    <div>
+      <label class="block text-xs font-semibold mb-1">Gender</label>
+      <select name="Gender" class="w-full border rounded px-3 py-1.5 text-sm">
+        <option value="Laki-Laki" ${data && data.Gender === 'Laki-Laki' ? 'selected' : ''}>Laki-Laki</option>
+        <option value="Perempuan" ${data && data.Gender === 'Perempuan' ? 'selected' : ''}>Perempuan</option>
+      </select>
+    </div>
+    
+    <div><label class="block text-xs font-semibold mb-1">Alamat</label><textarea name="Alamat" class="w-full border rounded px-3 py-1.5 text-sm">${data ? data.Alamat : ''}</textarea></div>
+    <div>
+      <label class="block text-xs font-semibold mb-1">Status</label>
+      <select name="Status" class="w-full border rounded px-3 py-1.5 text-sm">
+        <option value="Aktif" ${data && data.Status === 'Aktif' ? 'selected' : ''}>Aktif</option>
+        <option value="Pindah/Non-Aktif" ${data && data.Status === 'Pindah/Non-Aktif' ? 'selected' : ''}>Pindah/Non-Aktif</option>
+      </select>
+    </div>
   `;
+
+  onKelompokChange(data ? data.Kelas : null);
   document.getElementById("modal-form").classList.remove("hidden");
+}
+
+function onKelompokChange(selectedKelas = null) {
+  const kVal = document.getElementById("field-kelompok").value;
+  const kelasSelect = document.getElementById("field-kelas");
+  kelasSelect.innerHTML = "";
+
+  let options = [];
+  if (kVal === "Caberawit") {
+    options = ["Kelas 1", "Kelas 2", "Kelas 3", "Kelas 4", "Kelas 5", "Kelas 6"];
+  } else {
+    options = ["1 KELAS"];
+  }
+
+  options.forEach(opt => {
+    const isSelected = selectedKelas === opt ? "selected" : "";
+    kelasSelect.innerHTML += `<option value="${opt}" ${isSelected}>${opt}</option>`;
+  });
+}
+
+function editJamaah(id) {
+  const item = appData.jamaah.find(j => String(j.ID) === String(id));
+  if (item) {
+    openFormJamaah(item);
+  }
 }
 
 async function handleFormSubmit(e) {
@@ -496,7 +571,7 @@ async function handleFormSubmit(e) {
 async function deleteRow(sheetName, id) {
   if (!confirm("Apakah Anda yakin ingin menghapus data ini?")) return;
   const actionName = `delete_${sheetName.toLowerCase()}`;
-  showMessage("Meninggalkan data...", "info");
+  showMessage("Menghapus data...", "info");
 
   try {
     const res = await fetch(SCRIPT_URL, {
@@ -513,7 +588,6 @@ async function deleteRow(sheetName, id) {
   }
 }
 
-// UTILITY MESSAGE
 function showMessage(msg, type) {
   const el = document.getElementById("status-message");
   el.innerText = msg;
