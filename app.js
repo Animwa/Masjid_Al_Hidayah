@@ -3,7 +3,7 @@
 // ==========================================
 
 // CONSTANTS - PASTE URL WEB APP APPS SCRIPT DI SINI
-const SCRIPT_URL = "URL_GOOGLE_APPS_SCRIPT_WEB_APP_ANDA_DI_SINI";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyD216r77v1cUWbJEGS3TRW_GB9Mus6LzgvzowZc1miWqhrXYFfruGeu4Lj7xDT2m60iQ/exec";
 
 // STATE SEMENTARA
 let appData = {
