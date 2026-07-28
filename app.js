@@ -1,5 +1,5 @@
 // ==========================================
-// FRONTEND LOGIC & INTEGRASI API (FULL CLEAN & FIXED)
+// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH
 // ==========================================
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby4HkEiK4yatFJvIn32c7I9dyYZ-Oy3NBIXr3zHJXGyOHMvoDGo0KzQO37MbDrghl2ARw/exec";
@@ -18,7 +18,7 @@ let currentKelas = "Kelas 1";
 let activeFormType = null;
 let rekapChartInstance = null;
 
-// Register ChartDataLabels jika plugin tersedia
+// Register ChartDataLabels jika plugin tersedia di window
 if (typeof ChartDataLabels !== 'undefined') {
   Chart.register(ChartDataLabels);
 }
@@ -42,11 +42,12 @@ function setDefaultDate() {
 }
 
 function updateDayLabel() {
-  const dateInput = document.getElementById("presensi-date").value;
-  if (!dateInput) return;
+  const dateInput = document.getElementById("presensi-date");
+  if (!dateInput || !dateInput.value) return;
   const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-  const d = new Date(dateInput + "T00:00:00");
-  document.getElementById("presensi-day").value = days[d.getDay()];
+  const d = new Date(dateInput.value + "T00:00:00");
+  const dayEl = document.getElementById("presensi-day");
+  if (dayEl) dayEl.value = days[d.getDay()];
 }
 
 async function loadAllData() {
@@ -71,7 +72,10 @@ function renderAllViews() {
   renderInventaris();
   renderJamaah();
   renderPresensiTable();
-  if (document.getElementById("view-rekapitulasi") && !document.getElementById("view-rekapitulasi").classList.contains("hidden")) {
+  
+  // Null-safe check agar tidak crash jika tab rekapitulasi belum aktif
+  const rekapSection = document.getElementById("view-rekapitulasi");
+  if (rekapSection && !rekapSection.classList.contains("hidden")) {
     onChartFilterChange();
   }
 }
@@ -101,7 +105,7 @@ function switchTab(tabName) {
     onChartFilterChange();
   }
 
-  // Tutup menu seluler/hamburger secara otomatis setelah klik
+  // Tutup menu seluler/hamburger secara otomatis setelah diklik
   const menuContainer = document.getElementById("nav-menu-container");
   const icon = document.getElementById("hamburger-icon");
   if (window.innerWidth < 768 && menuContainer && menuContainer.classList.contains("show-mobile-menu")) {
@@ -295,8 +299,12 @@ function updateRekapMingguan() {
 async function submitPresensi() {
   if (!currentAdmin) return alert("Akses Admin diperlukan!");
   
-  const date = document.getElementById("presensi-date").value;
-  const day = document.getElementById("presensi-day").value;
+  const dateInput = document.getElementById("presensi-date");
+  const dayInput = document.getElementById("presensi-day");
+  if (!dateInput || !dayInput) return;
+
+  const date = dateInput.value;
+  const day = dayInput.value;
 
   const filteredJamaah = appData.jamaah.filter(j => {
     const matchStatus = String(j.Status).trim().toLowerCase() === "aktif";
@@ -357,6 +365,8 @@ async function submitPresensi() {
 function onChartFilterChange() {
   const kelompokSelect = document.getElementById("chart-kelompok-select");
   const kelasSelect = document.getElementById("chart-kelas-select");
+  
+  // Guard Clause: Batalkan jika elemen dropdown chart tidak ada di layar
   if (!kelompokSelect || !kelasSelect) return;
 
   const kVal = kelompokSelect.value;
@@ -392,7 +402,7 @@ function renderChart() {
       return;
     }
 
-    // EXTRAKSI TANGGAL MURNI DENGAN PARSING UTAS TEKS (TGL 31 TIDAK AKAN BERGESER KE 30)
+    // MURNI AMBIL STRING TANGGAL (MENCEGAH BUG UTC BERGESER H-1)
     let rawDateStr = "";
     if (typeof p.Tanggal === "string") {
       rawDateStr = p.Tanggal.split("T")[0].trim();
@@ -429,7 +439,7 @@ function renderChart() {
   sortedDates.forEach(dateStr => {
     const parts = dateStr.split("-");
     if (parts.length === 3) {
-      labels.push(`${parts[2]}/${parts[1]}`);
+      labels.push(`${parts[2]}/${parts[1]}`); // Ambil format DD/MM
     } else {
       labels.push(dateStr);
     }
@@ -496,7 +506,7 @@ function renderChart() {
       maintainAspectRatio: false,
       layout: {
         padding: {
-          top: 25, // Padding atas ekstra agar label persentase 100% tidak menabrak legenda
+          top: 25, // Padding atas ekstra agar persentase 100% tidak menabrak legenda
           bottom: 10,
           left: 10,
           right: 15
@@ -509,7 +519,7 @@ function renderChart() {
           labels: {
             boxWidth: 15,
             boxHeight: 12,
-            padding: 20, // Ruang lega antara LEGENDA dan GARIS GRAFIK
+            padding: 20, // Ruang antara LEGENDA dan GARIS GRAFIK
             font: { family: "sans-serif", weight: "bold", size: 12 }
           }
         },
@@ -520,7 +530,7 @@ function renderChart() {
             }
           }
         },
-        // INDIKATOR PERSENTASE PADA TITIK GRAFIK (PINTAR & RAPI)
+        // INDIKATOR PERSENTASE PADA TITIK GRAFIK (CLEAN & ANTI-TABRAK)
         datalabels: {
           anchor: function(context) {
             return context.dataset.data[context.dataIndex] >= 100 ? "center" : "end";
@@ -544,7 +554,7 @@ function renderChart() {
       scales: {
         y: {
           beginAtZero: true,
-          suggestedMax: 115, // Dinaikkan ke 115% agar titik 100% tidak menempel batas paling atas
+          suggestedMax: 115, // Dinaikkan ke 115% agar titik 100% punya ruang dan tidak menempel di batas paling atas
           title: { display: true, text: "Persentase Kehadiran (%)", font: { size: 11 } },
           ticks: {
             stepSize: 20,
@@ -562,21 +572,28 @@ function renderChart() {
 }
 
 function openLoginModal() {
-  document.getElementById("modal-login").classList.remove("hidden");
+  const modal = document.getElementById("modal-login");
+  if (modal) modal.classList.remove("hidden");
 }
 
 function openAddAdminModal() {
-  document.getElementById("modal-add-admin").classList.remove("hidden");
+  const modal = document.getElementById("modal-add-admin");
+  if (modal) modal.classList.remove("hidden");
 }
 
 function closeModal(id) {
-  document.getElementById(id).classList.add("hidden");
+  const modal = document.getElementById(id);
+  if (modal) modal.classList.add("hidden");
 }
 
 async function handleLogin(e) {
   e.preventDefault();
-  const nama = document.getElementById("login-nama").value;
-  const pin = document.getElementById("login-pin").value;
+  const namaInput = document.getElementById("login-nama");
+  const pinInput = document.getElementById("login-pin");
+  if (!namaInput || !pinInput) return;
+
+  const nama = namaInput.value;
+  const pin = pinInput.value;
 
   showMessage("Verifikasi Admin...", "info");
   try {
@@ -628,8 +645,12 @@ function updateAdminUI() {
 
 async function handleAddAdmin(e) {
   e.preventDefault();
-  const nama = document.getElementById("new-admin-nama").value;
-  const pin = document.getElementById("new-admin-pin").value;
+  const namaInput = document.getElementById("new-admin-nama");
+  const pinInput = document.getElementById("new-admin-pin");
+  if (!namaInput || !pinInput) return;
+
+  const nama = namaInput.value;
+  const pin = pinInput.value;
 
   try {
     const res = await fetch(SCRIPT_URL, {
@@ -650,85 +671,104 @@ async function handleAddAdmin(e) {
 
 function openFormPengurus() {
   activeFormType = "Pengurus";
-  document.getElementById("modal-form-title").innerText = "Tambah Data Pengurus";
-  document.getElementById("modal-form-fields").innerHTML = `
-    <input type="hidden" name="ID" value="">
-    <div><label class="block text-xs font-semibold mb-1">Nama Lengkap</label><input type="text" name="Nama" required class="w-full border rounded px-3 py-1.5 text-sm"></div>
-    <div><label class="block text-xs font-semibold mb-1">Jabatan</label><input type="text" name="Jabatan" required class="w-full border rounded px-3 py-1.5 text-sm"></div>
-    <div><label class="block text-xs font-semibold mb-1">No. HP</label><input type="text" name="NoHP" class="w-full border rounded px-3 py-1.5 text-sm"></div>
-    <div><label class="block text-xs font-semibold mb-1">Status</label><select name="Status" class="w-full border rounded px-3 py-1.5 text-sm"><option>Aktif</option><option>Non-Aktif</option></select></div>
-  `;
-  document.getElementById("modal-form").classList.remove("hidden");
+  const titleEl = document.getElementById("modal-form-title");
+  const fieldsEl = document.getElementById("modal-form-fields");
+  if (titleEl) titleEl.innerText = "Tambah Data Pengurus";
+  if (fieldsEl) {
+    fieldsEl.innerHTML = `
+      <input type="hidden" name="ID" value="">
+      <div><label class="block text-xs font-semibold mb-1">Nama Lengkap</label><input type="text" name="Nama" required class="w-full border rounded px-3 py-1.5 text-sm"></div>
+      <div><label class="block text-xs font-semibold mb-1">Jabatan</label><input type="text" name="Jabatan" required class="w-full border rounded px-3 py-1.5 text-sm"></div>
+      <div><label class="block text-xs font-semibold mb-1">No. HP</label><input type="text" name="NoHP" class="w-full border rounded px-3 py-1.5 text-sm"></div>
+      <div><label class="block text-xs font-semibold mb-1">Status</label><select name="Status" class="w-full border rounded px-3 py-1.5 text-sm"><option>Aktif</option><option>Non-Aktif</option></select></div>
+    `;
+  }
+  openModal("modal-form");
 }
 
 function openFormInventaris() {
   activeFormType = "Inventaris";
-  document.getElementById("modal-form-title").innerText = "Tambah Inventaris Barang";
-  document.getElementById("modal-form-fields").innerHTML = `
-    <input type="hidden" name="ID" value="">
-    <div><label class="block text-xs font-semibold mb-1">Nama Barang</label><input type="text" name="NamaBarang" required class="w-full border rounded px-3 py-1.5 text-sm"></div>
-    <div><label class="block text-xs font-semibold mb-1">Jumlah</label><input type="number" name="Jumlah" required class="w-full border rounded px-3 py-1.5 text-sm" value="1"></div>
-    <div><label class="block text-xs font-semibold mb-1">Kondisi</label><select name="Kondisi" class="w-full border rounded px-3 py-1.5 text-sm"><option>Baik</option><option>Rusak Ringan</option><option>Rusak Berat</option></select></div>
-    <div><label class="block text-xs font-semibold mb-1">Tanggal Masuk</label><input type="date" name="TanggalMasuk" class="w-full border rounded px-3 py-1.5 text-sm"></div>
-    <div><label class="block text-xs font-semibold mb-1">Keterangan</label><textarea name="Keterangan" class="w-full border rounded px-3 py-1.5 text-sm"></textarea></div>
-  `;
-  document.getElementById("modal-form").classList.remove("hidden");
+  const titleEl = document.getElementById("modal-form-title");
+  const fieldsEl = document.getElementById("modal-form-fields");
+  if (titleEl) titleEl.innerText = "Tambah Inventaris Barang";
+  if (fieldsEl) {
+    fieldsEl.innerHTML = `
+      <input type="hidden" name="ID" value="">
+      <div><label class="block text-xs font-semibold mb-1">Nama Barang</label><input type="text" name="NamaBarang" required class="w-full border rounded px-3 py-1.5 text-sm"></div>
+      <div><label class="block text-xs font-semibold mb-1">Jumlah</label><input type="number" name="Jumlah" required class="w-full border rounded px-3 py-1.5 text-sm" value="1"></div>
+      <div><label class="block text-xs font-semibold mb-1">Kondisi</label><select name="Kondisi" class="w-full border rounded px-3 py-1.5 text-sm"><option>Baik</option><option>Rusak Ringan</option><option>Rusak Berat</option></select></div>
+      <div><label class="block text-xs font-semibold mb-1">Tanggal Masuk</label><input type="date" name="TanggalMasuk" class="w-full border rounded px-3 py-1.5 text-sm"></div>
+      <div><label class="block text-xs font-semibold mb-1">Keterangan</label><textarea name="Keterangan" class="w-full border rounded px-3 py-1.5 text-sm"></textarea></div>
+    `;
+  }
+  openModal("modal-form");
 }
 
 function openFormJamaah(data = null) {
   activeFormType = "Jamaah";
-  document.getElementById("modal-form-title").innerText = data ? "Edit Data Jamaah" : "Tambah Data Jamaah";
+  const titleEl = document.getElementById("modal-form-title");
+  const fieldsEl = document.getElementById("modal-form-fields");
+  if (titleEl) titleEl.innerText = data ? "Edit Data Jamaah" : "Tambah Data Jamaah";
   
   const formattedDob = data && data.TanggalLahir ? data.TanggalLahir.toString().split("T")[0] : "";
 
-  document.getElementById("modal-form-fields").innerHTML = `
-    <input type="hidden" name="ID" value="${data ? data.ID : ''}">
-    <div><label class="block text-xs font-semibold mb-1">Nama Lengkap</label><input type="text" name="Nama" value="${data ? data.Nama : ''}" required class="w-full border rounded px-3 py-1.5 text-sm"></div>
-    <div><label class="block text-xs font-semibold mb-1">Tanggal Lahir</label><input type="date" name="TanggalLahir" value="${formattedDob}" required class="w-full border rounded px-3 py-1.5 text-sm"></div>
-    
-    <div>
-      <label class="block text-xs font-semibold mb-1">Kelompok Usia</label>
-      <select name="Kelompok" id="field-kelompok" onchange="onKelompokChange()" class="w-full border rounded px-3 py-1.5 text-sm">
-        <option value="Caberawit" ${data && data.Kelompok === 'Caberawit' ? 'selected' : ''}>Caberawit (SD)</option>
-        <option value="Pra Remaja" ${data && data.Kelompok === 'Pra Remaja' ? 'selected' : ''}>Pra Remaja (SMP)</option>
-        <option value="Remaja" ${data && data.Kelompok === 'Remaja' ? 'selected' : ''}>Remaja (SMA)</option>
-        <option value="Muda-Mudi" ${data && data.Kelompok === 'Muda-Mudi' ? 'selected' : ''}>Muda-Mudi</option>
-        <option value="Bapak-Bapak" ${data && data.Kelompok === 'Bapak-Bapak' ? 'selected' : ''}>Bapak-Bapak</option>
-        <option value="Ibu-Ibu" ${data && data.Kelompok === 'Ibu-Ibu' ? 'selected' : ''}>Ibu-Ibu</option>
-      </select>
-    </div>
+  if (fieldsEl) {
+    fieldsEl.innerHTML = `
+      <input type="hidden" name="ID" value="${data ? data.ID : ''}">
+      <div><label class="block text-xs font-semibold mb-1">Nama Lengkap</label><input type="text" name="Nama" value="${data ? data.Nama : ''}" required class="w-full border rounded px-3 py-1.5 text-sm"></div>
+      <div><label class="block text-xs font-semibold mb-1">Tanggal Lahir</label><input type="date" name="TanggalLahir" value="${formattedDob}" required class="w-full border rounded px-3 py-1.5 text-sm"></div>
+      
+      <div>
+        <label class="block text-xs font-semibold mb-1">Kelompok Usia</label>
+        <select name="Kelompok" id="field-kelompok" onchange="onKelompokChange()" class="w-full border rounded px-3 py-1.5 text-sm">
+          <option value="Caberawit" ${data && data.Kelompok === 'Caberawit' ? 'selected' : ''}>Caberawit (SD)</option>
+          <option value="Pra Remaja" ${data && data.Kelompok === 'Pra Remaja' ? 'selected' : ''}>Pra Remaja (SMP)</option>
+          <option value="Remaja" ${data && data.Kelompok === 'Remaja' ? 'selected' : ''}>Remaja (SMA)</option>
+          <option value="Muda-Mudi" ${data && data.Kelompok === 'Muda-Mudi' ? 'selected' : ''}>Muda-Mudi</option>
+          <option value="Bapak-Bapak" ${data && data.Kelompok === 'Bapak-Bapak' ? 'selected' : ''}>Bapak-Bapak</option>
+          <option value="Ibu-Ibu" ${data && data.Kelompok === 'Ibu-Ibu' ? 'selected' : ''}>Ibu-Ibu</option>
+        </select>
+      </div>
 
-    <div>
-      <label class="block text-xs font-semibold mb-1">Kelas</label>
-      <select name="Kelas" id="field-kelas" class="w-full border rounded px-3 py-1.5 text-sm"></select>
-    </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1">Kelas</label>
+        <select name="Kelas" id="field-kelas" class="w-full border rounded px-3 py-1.5 text-sm"></select>
+      </div>
 
-    <div>
-      <label class="block text-xs font-semibold mb-1">Gender</label>
-      <select name="Gender" class="w-full border rounded px-3 py-1.5 text-sm">
-        <option value="Laki-Laki" ${data && data.Gender === 'Laki-Laki' ? 'selected' : ''}>Laki-Laki</option>
-        <option value="Perempuan" ${data && data.Gender === 'Perempuan' ? 'selected' : ''}>Perempuan</option>
-      </select>
-    </div>
-    
-    <div><label class="block text-xs font-semibold mb-1">Alamat</label><textarea name="Alamat" class="w-full border rounded px-3 py-1.5 text-sm">${data ? data.Alamat : ''}</textarea></div>
-    <div>
-      <label class="block text-xs font-semibold mb-1">Status</label>
-      <select name="Status" class="w-full border rounded px-3 py-1.5 text-sm">
-        <option value="Aktif" ${data && data.Status === 'Aktif' ? 'selected' : ''}>Aktif</option>
-        <option value="Pindah/Non-Aktif" ${data && data.Status === 'Pindah/Non-Aktif' ? 'selected' : ''}>Pindah/Non-Aktif</option>
-      </select>
-    </div>
-  `;
+      <div>
+        <label class="block text-xs font-semibold mb-1">Gender</label>
+        <select name="Gender" class="w-full border rounded px-3 py-1.5 text-sm">
+          <option value="Laki-Laki" ${data && data.Gender === 'Laki-Laki' ? 'selected' : ''}>Laki-Laki</option>
+          <option value="Perempuan" ${data && data.Gender === 'Perempuan' ? 'selected' : ''}>Perempuan</option>
+        </select>
+      </div>
+      
+      <div><label class="block text-xs font-semibold mb-1">Alamat</label><textarea name="Alamat" class="w-full border rounded px-3 py-1.5 text-sm">${data ? data.Alamat : ''}</textarea></div>
+      <div>
+        <label class="block text-xs font-semibold mb-1">Status</label>
+        <select name="Status" class="w-full border rounded px-3 py-1.5 text-sm">
+          <option value="Aktif" ${data && data.Status === 'Aktif' ? 'selected' : ''}>Aktif</option>
+          <option value="Pindah/Non-Aktif" ${data && data.Status === 'Pindah/Non-Aktif' ? 'selected' : ''}>Pindah/Non-Aktif</option>
+        </select>
+      </div>
+    `;
+  }
 
   onKelompokChange(data ? data.Kelas : null);
-  document.getElementById("modal-form").classList.remove("hidden");
+  openModal("modal-form");
+}
+
+function openModal(id) {
+  const modal = document.getElementById(id);
+  if (modal) modal.classList.remove("hidden");
 }
 
 function onKelompokChange(selectedKelas = null) {
-  const kVal = document.getElementById("field-kelompok").value;
+  const kValEl = document.getElementById("field-kelompok");
   const kelasSelect = document.getElementById("field-kelas");
-  if (!kelasSelect) return;
+  if (!kValEl || !kelasSelect) return;
+
+  const kVal = kValEl.value;
   kelasSelect.innerHTML = "";
 
   let options = (kVal === "Caberawit") ? ["Kelas 1", "Kelas 2", "Kelas 3", "Kelas 4", "Kelas 5", "Kelas 6"] : ["1 KELAS"];
