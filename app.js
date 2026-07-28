@@ -3,7 +3,7 @@
 // ==========================================
 
 // CONSTANTS - PASTE URL WEB APP APPS SCRIPT DI SINI
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbweebVqCN_d5cH0d_eT0-t0ye7xaGYrVOW4a-JTjvmiijN9gQtU7CWsHn-zyKydfLNLhA/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzg9UD1qH8chQt0QJczhuRUyDModtTa5wCMwRe6qcsg5ztQ82VPbFJQebHzfKo212943Q/exec";
 
 // STATE SEMENTARA
 let appData = {
