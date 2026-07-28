@@ -149,3 +149,31 @@ img, svg, canvas {
 .animate-scaleUp {
   animation: scaleUp 0.2s ease-out forwards;
 }
+
+/* ==========================================
+   PERBAIKAN SCROLLBUTTON KELAS CABERAWIT
+   ========================================== */
+
+/* Pastikan container kelas bisa di-swipe dengan halus di HP */
+#class-buttons {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch; /* Momentum scroll halus di iOS/Android */
+  scroll-snap-type: x mandatory;
+}
+
+#class-buttons button {
+  shrink: 0;
+  white-space: nowrap; /* Mencegah teks tombol terlipat */
+  scroll-snap-align: start;
+}
+
+/* Hilangkan scrollbar bawaan browser agar tampilan bersih */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
