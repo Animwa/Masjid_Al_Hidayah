@@ -1,8 +1,8 @@
 // ==========================================
-// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (ULTIMATE ACCURATE REKAP)
+// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (PRE-FILL & PERMISSION FIXED)
 // ==========================================
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwtVhpHed-ctK9-5TPkAZXDNfGb_ZaChpRfyqMgDu_Ug30d5kHaiuhabhPAd_gRfC1o_Q/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby4HkEiK4yatFJvIn32c7I9dyYZ-Oy3NBIXr3zHJXGyOHMvoDGo0KzQO37MbDrghl2ARw/exec";
 
 let appData = {
   pengurus: [],
@@ -48,6 +48,9 @@ function updateDayLabel() {
   const d = new Date(dateInput.value + "T00:00:00");
   const dayEl = document.getElementById("presensi-day");
   if (dayEl) dayEl.value = days[d.getDay()];
+  
+  // Render ulang tabel presensi sesuai tanggal yang baru dipilih
+  renderPresensiTable();
 }
 
 async function loadAllData() {
@@ -224,6 +227,7 @@ function renderJamaah() {
   `).join("");
 }
 
+// RENDER TABEL PRESENSI (PRE-FILL DARI SPREADSHEET & HAK AKSES PERMISSION)
 function renderPresensiTable() {
   const filteredJamaah = appData.jamaah.filter(j => {
     const matchStatus = String(j.Status).trim().toLowerCase() === "aktif";
@@ -245,26 +249,67 @@ function renderPresensiTable() {
       </tr>
     `;
   } else {
-    tbody.innerHTML = filteredJamaah.map((j, idx) => `
-      <tr class="bg-white border-b hover:bg-slate-50">
-        <td class="px-4 py-3 font-medium text-slate-800">${j.Nama}</td>
-        <td class="px-3 py-3 text-center">
-          <input type="radio" name="presensi-${idx}" value="Hadir" checked class="w-4 h-4 text-emerald-600 focus:ring-emerald-500 cursor-pointer">
-        </td>
-        <td class="px-3 py-3 text-center">
-          <input type="radio" name="presensi-${idx}" value="Izin" class="w-4 h-4 text-amber-500 focus:ring-amber-500 cursor-pointer">
-        </td>
-        <td class="px-3 py-3 text-center">
-          <input type="radio" name="presensi-${idx}" value="Alfa" class="w-4 h-4 text-rose-600 focus:ring-rose-500 cursor-pointer">
-        </td>
-      </tr>
-    `).join("");
+    // Ambil tanggal yang sedang dipilih di form
+    const selectedDateInput = document.getElementById("presensi-date");
+    const targetDate = selectedDateInput ? selectedDateInput.value : "";
+
+    // Peta status presensi eksis dari Spreadsheet untuk tanggal, kelompok, dan kelas ini
+    let existingStatusMap = {};
+    appData.presensi.forEach(p => {
+      if (!p.Tanggal || !p.NamaJamaah) return;
+
+      const pKel = String(p.Kelompok || "").trim().toLowerCase();
+      const pKls = String(p.Kelas || "").trim().toLowerCase();
+      let pDateStr = "";
+
+      if (p.Tanggal instanceof Date) {
+        const y = p.Tanggal.getUTCFullYear();
+        const m = String(p.Tanggal.getUTCMonth() + 1).padStart(2, '0');
+        const d = String(p.Tanggal.getUTCDate()).padStart(2, '0');
+        pDateStr = `${y}-${m}-${d}`;
+      } else {
+        pDateStr = String(p.Tanggal).split("T")[0].trim();
+      }
+
+      if (pKel === String(currentKelompok).trim().toLowerCase() && 
+          pKls === String(currentKelas).trim().toLowerCase() && 
+          pDateStr === targetDate) {
+        existingStatusMap[String(p.NamaJamaah).trim().toLowerCase()] = String(p.StatusPresensi || "Hadir").trim();
+      }
+    });
+
+    // Cek apakah user sedang login sebagai Admin
+    const isReadOnly = !currentAdmin;
+    const disabledAttr = isReadOnly ? "disabled cursor-not-allowed opacity-80" : "cursor-pointer";
+
+    tbody.innerHTML = filteredJamaah.map((j, idx) => {
+      const namaKey = String(j.Nama).trim().toLowerCase();
+      // Ambil status dari database jika sudah pernah diinput, jika belum default-kan ke "Hadir"
+      const savedStatus = existingStatusMap[namaKey] || "Hadir";
+
+      return `
+        <tr class="bg-white border-b hover:bg-slate-50">
+          <td class="px-4 py-3 font-medium text-slate-800">
+            ${j.Nama}
+            ${existingStatusMap[namaKey] ? `<span class="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold border border-emerald-200">Tersimpan</span>` : ''}
+          </td>
+          <td class="px-3 py-3 text-center">
+            <input type="radio" name="presensi-${idx}" value="Hadir" ${savedStatus === 'Hadir' ? 'checked' : ''} ${disabledAttr} class="w-4 h-4 text-emerald-600 focus:ring-emerald-500">
+          </td>
+          <td class="px-3 py-3 text-center">
+            <input type="radio" name="presensi-${idx}" value="Izin" ${savedStatus === 'Izin' ? 'checked' : ''} ${disabledAttr} class="w-4 h-4 text-amber-500 focus:ring-amber-500">
+          </td>
+          <td class="px-3 py-3 text-center">
+            <input type="radio" name="presensi-${idx}" value="Alfa" ${savedStatus === 'Alfa' ? 'checked' : ''} ${disabledAttr} class="w-4 h-4 text-rose-600 focus:ring-rose-500">
+          </td>
+        </tr>
+      `;
+    }).join("");
   }
 
   updateRekapMingguan();
 }
 
-// PERBAIKAN: HITUNG REKAPAN MINGGUAN SECARA AKURAT DENGAN DEDUPLIKASI UNIK PER JAMAAH + TANGGAL
 function updateRekapMingguan() {
   const now = new Date();
   const startOfWeek = new Date(now);
@@ -272,7 +317,7 @@ function updateRekapMingguan() {
   startOfWeek.setHours(0, 0, 0, 0);
 
   let h = 0, i = 0, a = 0;
-  let latestPresensiMap = {}; // Key: "NamaJamaah_Tanggal" -> Value: StatusPresensi terbaru
+  let latestPresensiMap = {};
 
   appData.presensi.forEach(p => {
     if (!p.Tanggal || !p.NamaJamaah) return;
@@ -317,7 +362,7 @@ function updateRekapMingguan() {
 }
 
 async function submitPresensi() {
-  if (!currentAdmin) return alert("Akses Admin diperlukan!");
+  if (!currentAdmin) return alert("Akses Admin diperlukan untuk mengubah/menyimpan data!");
   
   const dateInput = document.getElementById("presensi-date");
   const dayInput = document.getElementById("presensi-day");
@@ -362,7 +407,7 @@ async function submitPresensi() {
     });
     const json = await res.json();
     if (json.success) {
-      showMessage("Presensi berhasil disimpan!", "success");
+      showMessage("Presensi berhasil diperbarui!", "success");
       await loadAllData();
       
       const chartKSelect = document.getElementById("chart-kelompok-select");
@@ -421,7 +466,6 @@ function renderChart() {
       return;
     }
 
-    // EXTRAKSI STRING TANGGAL MURNI (MENCEGAH BUG PERGESERAN GMT/UTC H-1)
     let rawDateStr = "";
     if (typeof p.Tanggal === "string") {
       rawDateStr = p.Tanggal.split("T")[0].trim();
@@ -488,7 +532,7 @@ function renderChart() {
         {
           label: "Hadir (%)",
           data: hadirData,
-          borderColor: "#10b981", // Hijau
+          borderColor: "#10b981",
           backgroundColor: "rgba(16, 185, 129, 0.1)",
           borderWidth: 3,
           pointBackgroundColor: "#10b981",
@@ -499,7 +543,7 @@ function renderChart() {
         {
           label: "Izin (%)",
           data: izinData,
-          borderColor: "#f59e0b", // Kuning/Amber
+          borderColor: "#f59e0b",
           backgroundColor: "rgba(245, 158, 11, 0.1)",
           borderWidth: 3,
           pointBackgroundColor: "#f59e0b",
@@ -510,7 +554,7 @@ function renderChart() {
         {
           label: "Alfa (%)",
           data: alfaData,
-          borderColor: "#ef4444", // Merah
+          borderColor: "#ef4444",
           backgroundColor: "rgba(239, 68, 68, 0.1)",
           borderWidth: 3,
           pointBackgroundColor: "#ef4444",
