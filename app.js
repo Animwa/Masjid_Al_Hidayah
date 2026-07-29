@@ -1,8 +1,8 @@
 // ==========================================
-// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (MULTI-CHART & STRICT PERCENTAGE)
+// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (JURNAL & KBM UPDATED)
 // ==========================================
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyXX-UdtHWrROk1h32P1neXAG1yvAzH6tpjsSUSaAjbdYdksg82khO69bre2XyCV6ZOjQ/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyhvAT_4aXXC30xo9AtyL-S_TMeZ21bmJR0jbB1mpx-ZB5Yz00Ovb4cDZTIDt5qj7o5tg/exec";
 
 let appData = {
   pengurus: [],
@@ -273,6 +273,12 @@ function renderPresensiTable() {
 
   const displayTitle = (currentKelompok === "Caberawit") ? `${currentKelompok} (${currentKelas})` : currentKelompok;
 
+  // Elemen-elemen Form Jurnal & Kegiatan
+  const jenisKegiatanEl = document.getElementById("presensi-jenis-kegiatan");
+  const pemateriEl = document.getElementById("presensi-pemateri");
+  const jurnalEl = document.getElementById("presensi-jurnal");
+  const kendalaEl = document.getElementById("presensi-kendala");
+
   if (filteredJamaah.length === 0) {
     tbody.innerHTML = `
       <tr>
@@ -282,11 +288,20 @@ function renderPresensiTable() {
         </td>
       </tr>
     `;
+    if (jenisKegiatanEl) jenisKegiatanEl.value = "";
+    if (pemateriEl) pemateriEl.value = "";
+    if (jurnalEl) jurnalEl.value = "";
+    if (kendalaEl) kendalaEl.value = "";
   } else {
     const selectedDateInput = document.getElementById("presensi-date");
     const targetDate = selectedDateInput ? selectedDateInput.value : "";
 
     let existingStatusMap = {};
+    let savedJenisKegiatan = "";
+    let savedPemateri = "";
+    let savedJurnal = "";
+    let savedKendala = "";
+
     presensiList.forEach(p => {
       if (!p.Tanggal || !p.NamaJamaah) return;
 
@@ -310,8 +325,20 @@ function renderPresensiTable() {
           status: String(p.StatusPresensi || "Hadir").trim(),
           keterangan: String(p.Keterangan || "").trim()
         };
+
+        // Mengambil data jurnal & kegiatan hari tersebut dari record eksisting
+        if (p.JenisKegiatan) savedJenisKegiatan = p.JenisKegiatan;
+        if (p.Pemateri) savedPemateri = p.Pemateri;
+        if (p.Jurnal) savedJurnal = p.Jurnal;
+        if (p.Kendala) savedKendala = p.Kendala;
       }
     });
+
+    // Menampilkan kembali isi jurnal jika tanggal tersebut sudah pernah diisi
+    if (jenisKegiatanEl) jenisKegiatanEl.value = savedJenisKegiatan;
+    if (pemateriEl) pemateriEl.value = savedPemateri;
+    if (jurnalEl) jurnalEl.value = savedJurnal;
+    if (kendalaEl) kendalaEl.value = savedKendala;
 
     const isReadOnly = !currentAdmin;
     const disabledRadio = isReadOnly ? "disabled cursor-not-allowed opacity-80" : "cursor-pointer";
@@ -434,6 +461,11 @@ async function submitPresensi() {
   const date = dateInput.value;
   const day = dayInput.value;
 
+  const jenisKegiatan = document.getElementById("presensi-jenis-kegiatan") ? document.getElementById("presensi-jenis-kegiatan").value : "";
+  const pemateri = document.getElementById("presensi-pemateri") ? document.getElementById("presensi-pemateri").value : "";
+  const jurnal = document.getElementById("presensi-jurnal") ? document.getElementById("presensi-jurnal").value : "";
+  const kendala = document.getElementById("presensi-kendala") ? document.getElementById("presensi-kendala").value : "";
+
   const jamaahList = Array.isArray(appData.jamaah) ? appData.jamaah : [];
 
   const filteredJamaah = jamaahList.filter(j => {
@@ -468,11 +500,15 @@ async function submitPresensi() {
       hari: day,
       nama: j.Nama,
       status: selectedStatus,
-      keterangan: ketInput ? ketInput.value : ""
+      keterangan: ketInput ? ketInput.value : "",
+      jenisKegiatan: jenisKegiatan,
+      pemateri: pemateri,
+      jurnal: jurnal,
+      kendala: kendala
     });
   });
 
-  showMessage("Menyimpan data presensi...", "info");
+  showMessage("Menyimpan data presensi & jurnal...", "info");
   try {
     const res = await fetch(SCRIPT_URL, {
       method: "POST",
@@ -480,7 +516,7 @@ async function submitPresensi() {
     });
     const json = await res.json();
     if (json.success) {
-      showMessage("Presensi berhasil diperbarui!", "success");
+      showMessage("Presensi dan jurnal berhasil disimpan!", "success");
       await loadAllData();
     } else {
       showMessage("Gagal menyimpan: " + json.error, "error");
@@ -491,7 +527,7 @@ async function submitPresensi() {
 }
 
 // ==========================================
-// RENDER SELURUH GRAFIK REKAPITULASI BERURUTAN KE BAWAL
+// RENDER SELURUH GRAFIK REKAPITULASI BERURUTAN KE BAWAH
 // ==========================================
 
 function onChartFilterChange() {
@@ -502,7 +538,6 @@ function renderAllCharts() {
   const container = document.getElementById("charts-wrapper");
   if (!container) return;
 
-  // Daftar lengkap seluruh kelompok dan kelas yang dirender berurutan ke bawah
   const chartConfigs = [
     { kelompok: "Caberawit", kelas: "PAUD", title: "Caberawit - PAUD" },
     { kelompok: "Caberawit", kelas: "Tilawati 1", title: "Caberawit - Tilawati 1" },
@@ -518,11 +553,9 @@ function renderAllCharts() {
     { kelompok: "Ibu-Ibu", kelas: "Umum", title: "Ibu-Ibu" }
   ];
 
-  // Destroy seluruh chart instance lama agar tidak terjadi memory leak
   Object.values(chartInstances).forEach(chart => chart && typeof chart.destroy === 'function' && chart.destroy());
   chartInstances = {};
 
-  // Buat kontainer HTML kartu grafik untuk tiap kelas
   container.innerHTML = chartConfigs.map((cfg, idx) => `
     <div class="bg-white p-4 sm:p-6 rounded-xl border border-slate-200 shadow-sm">
       <div class="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
@@ -539,7 +572,6 @@ function renderAllCharts() {
     </div>
   `).join("");
 
-  // Render masing-masing chart secara terpisah
   chartConfigs.forEach((cfg, idx) => {
     renderSingleChart(`chart-canvas-${idx}`, cfg.kelompok, cfg.kelas);
   });
@@ -551,7 +583,6 @@ function renderSingleChart(canvasId, selectedKelompok, selectedKelas) {
 
   const ctx = chartCanvas.getContext("2d");
 
-  // 1. Hitung total pasti jamaah aktif terdaftar di kelompok & kelas ini (misal: 39 orang)
   const jamaahList = Array.isArray(appData.jamaah) ? appData.jamaah : [];
   const totalJamaahAktifList = jamaahList.filter(j => {
     const matchStatus = String(j.Status || "Aktif").trim().toLowerCase() === "aktif";
@@ -621,7 +652,6 @@ function renderSingleChart(canvasId, selectedKelompok, selectedKelas) {
 
     const stats = dailyDataMap[dateStr];
 
-    // Perhitungan persentase konsisten berbasis total jamaah kelas aktif
     const pctHadir = Number(((stats.Hadir / totalJamaahKelas) * 100).toFixed(1));
     const pctIzin = Number(((stats.Izin / totalJamaahKelas) * 100).toFixed(1));
     const pctAlfa = Number(((stats.Alfa / totalJamaahKelas) * 100).toFixed(1));
