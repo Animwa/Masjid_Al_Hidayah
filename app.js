@@ -899,17 +899,48 @@ function openFormKegiatan() {
   if (fieldsEl) {
     fieldsEl.innerHTML = `
       <input type="hidden" name="ID" value="">
-      <div><label class="block text-xs font-semibold mb-1">Nama Kegiatan</label><input type="text" name="Kegiatan" required class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Misal: Pengajian Rutin Jumat Malam"></div>
-      <div class="grid grid-cols-2 gap-2">
-        <div><label class="block text-xs font-semibold mb-1">Hari</label><input type="text" name="Hari" required class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Misal: Jumat"></div>
-        <div><label class="block text-xs font-semibold mb-1">Tanggal</label><input type="date" name="Tanggal" required class="w-full border rounded px-3 py-1.5 text-sm"></div>
+      <div>
+        <label class="block text-xs font-semibold mb-1">Nama Kegiatan</label>
+        <input type="text" name="Kegiatan" required class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Misal: CAI DAY 1">
       </div>
-      <div><label class="block text-xs font-semibold mb-1">Jam / Waktu</label><input type="text" name="Jam" required class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Misal: 19:30 - Selesai"></div>
-      <div><label class="block text-xs font-semibold mb-1">Pemateri / Pengajar</label><input type="text" name="Pemateri" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Nama Ustaz / Penceramah"></div>
-      <div><label class="block text-xs font-semibold mb-1">Keterangan / Lokasi</label><textarea name="Keterangan" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Catatan lokasi atau perlengkapan yang perlu dibawa"></textarea></div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs font-semibold mb-1">Tanggal</label>
+          <input type="date" id="modal-kegiatan-tanggal" name="Tanggal" required onchange="updateModalHari()" class="w-full border rounded px-3 py-1.5 text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1">Hari</label>
+          <input type="text" id="modal-kegiatan-hari" name="Hari" readonly required class="w-full border rounded px-3 py-1.5 text-sm bg-slate-100 font-semibold text-slate-700" placeholder="Otomatis">
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1">Jam / Waktu</label>
+        <input type="text" name="Jam" required class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Misal: 19:30 - Selesai">
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1">Pemateri / Pengajar</label>
+        <input type="text" name="Pemateri" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Nama Ustaz / Penceramah">
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1">Keterangan / Lokasi</label>
+        <textarea name="Keterangan" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Catatan lokasi atau perlengkapan yang perlu dibawa"></textarea>
+      </div>
     `;
   }
   openModal("modal-form");
+}
+
+function updateModalHari() {
+  const dateInput = document.getElementById("modal-kegiatan-tanggal");
+  const hariInput = document.getElementById("modal-kegiatan-hari");
+  if (!dateInput || !hariInput || !dateInput.value) return;
+
+  const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+  // Menggunakan T00:00:00 agar konversi Date tepat mengikuti zona waktu lokal
+  const d = new Date(dateInput.value + "T00:00:00");
+  if (!isNaN(d.getTime())) {
+    hariInput.value = days[d.getDay()];
+  }
 }
 
 function openFormPengurus() {
