@@ -2,7 +2,7 @@
 // FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (HARIAN & KETERANGAN FIXED)
 // ==========================================
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby4HkEiK4yatFJvIn32c7I9dyYZ-Oy3NBIXr3zHJXGyOHMvoDGo0KzQO37MbDrghl2ARw/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwmTldasI8CFcyAeENLafdo95di3MPaSAbf7IvFEoefKT8sm4IvfzlDWvPIC6kDSgN-fQ/exec";
 
 let appData = {
   pengurus: [],
