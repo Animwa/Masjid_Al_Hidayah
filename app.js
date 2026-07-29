@@ -526,10 +526,22 @@ function renderChart() {
   const selectedKelompok = document.getElementById("chart-kelompok-select") ? document.getElementById("chart-kelompok-select").value : "Caberawit";
   const selectedKelas = document.getElementById("chart-kelas-select") ? document.getElementById("chart-kelas-select").value : "PAUD";
 
-  let dailyDataMap = {};
-  const presensiList = Array.isArray(appData.presensi) ? appData.presensi : [];
+  // 1. Hitung total pasti jamaah aktif di kelompok & kelas ini (misal: 39 orang)
+  const totalJamaahAktifList = (appData.jamaah || []).filter(j => {
+    const matchStatus = String(j.Status || "Aktif").trim().toLowerCase() === "aktif";
+    const matchKelompok = String(j.Kelompok || "Caberawit").trim().toLowerCase() === String(selectedKelompok).trim().toLowerCase();
+    let matchKelas = true;
+    if (selectedKelompok === "Caberawit") {
+      matchKelas = String(j.Kelas || "").trim().toLowerCase() === String(selectedKelas).trim().toLowerCase();
+    }
+    return matchStatus && matchKelompok && matchKelas;
+  });
 
-  presensiList.forEach(p => {
+  const totalJamaahKelas = totalJamaahAktifList.length > 0 ? totalJamaahAktifList.length : 1;
+
+  let dailyDataMap = {};
+
+  (appData.presensi || []).forEach(p => {
     if (!p.Tanggal) return;
 
     const pKel = String(p.Kelompok || "Caberawit").trim().toLowerCase();
@@ -556,15 +568,13 @@ function renderChart() {
     if (!rawDateStr || rawDateStr.length < 10) return;
 
     if (!dailyDataMap[rawDateStr]) {
-      dailyDataMap[rawDateStr] = { Hadir: 0, Izin: 0, Alfa: 0, Total: 0 };
+      dailyDataMap[rawDateStr] = { Hadir: 0, Izin: 0, Alfa: 0 };
     }
 
     const st = String(p.StatusPresensi || "").trim();
     if (st === "Hadir") dailyDataMap[rawDateStr].Hadir++;
     else if (st === "Izin") dailyDataMap[rawDateStr].Izin++;
     else if (st === "Alfa") dailyDataMap[rawDateStr].Alfa++;
-    
-    dailyDataMap[rawDateStr].Total++;
   });
 
   const sortedDates = Object.keys(dailyDataMap).sort();
@@ -583,11 +593,16 @@ function renderChart() {
     }
 
     const stats = dailyDataMap[dateStr];
-    const total = stats.Total || 1;
 
-    hadirData.push(Math.round((stats.Hadir / total) * 100));
-    izinData.push(Math.round((stats.Izin / total) * 100));
-    alfaData.push(Math.round((stats.Alfa / total) * 100));
+    // PEMBAGIAN SELALU MENGGUNAKAN TOTAL JAMAAH KELAS (39 ORANG)
+    // TAMPILKAN 1 DESIMAL KOMA (misal: 2.6%)
+    const pctHadir = Number(((stats.Hadir / totalJamaahKelas) * 100).toFixed(1));
+    const pctIzin = Number(((stats.Izin / totalJamaahKelas) * 100).toFixed(1));
+    const pctAlfa = Number(((stats.Alfa / totalJamaahKelas) * 100).toFixed(1));
+
+    hadirData.push(pctHadir);
+    izinData.push(pctIzin);
+    alfaData.push(pctAlfa);
   });
 
   if (rekapChartInstance) rekapChartInstance.destroy();
@@ -677,7 +692,6 @@ function renderChart() {
     }
   });
 }
-
 function openLoginModal() {
   const modal = document.getElementById("modal-login");
   if (modal) modal.classList.remove("hidden");
