@@ -1,8 +1,8 @@
 // ==========================================
-// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (CRASH & BLANK SAFE)
+// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (STRICT UPDATE REKAP FIXED)
 // ==========================================
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzPCfnbwqFCNCeerNy2cCgapsrXkVWL0jnnK_bHS4RUsGS1Wx6DB-XPGHn-Fr_-gGsXcA/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyXX-UdtHWrROk1h32P1neXAG1yvAzH6tpjsSUSaAjbdYdksg82khO69bre2XyCV6ZOjQ/exec";
 
 let appData = {
   pengurus: [],
