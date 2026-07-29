@@ -1,5 +1,5 @@
 // ==========================================
-// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (EDIT FIX & PREFILL UPDATED)
+// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH
 // ==========================================
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby4HkEiK4yatFJvIn32c7I9dyYZ-Oy3NBIXr3zHJXGyOHMvoDGo0KzQO37MbDrghl2ARw/exec";
@@ -135,16 +135,9 @@ function selectKelompok(kelompok) {
   const classnav = document.getElementById("classnav-container");
   const classBtnContainer = document.getElementById("class-buttons");
 
-  let classes = [];
+  // HANYA CABERAWIT YANG MEMILIKI SUB-NAV KELAS
   if (kelompok === "Caberawit") {
-    classes = ["PAUD", "Tilawati 1", "Tilawati 2", "Tilawati 3", "Tilawati 4", "Tilawati 5", "Al-Qur'an"];
-  } else if (kelompok === "Pra Remaja") {
-    classes = ["Kelas 7", "Kelas 8", "Kelas 9"];
-  } else if (kelompok === "Remaja") {
-    classes = ["Kelas 10", "Kelas 11", "Kelas 12"];
-  }
-
-  if (classes.length > 0) {
+    const classes = ["PAUD", "Tilawati 1", "Tilawati 2", "Tilawati 3", "Tilawati 4", "Tilawati 5", "Al-Qur'an"];
     if (classnav) classnav.classList.remove("hidden");
     if (classBtnContainer) {
       classBtnContainer.innerHTML = "";
@@ -156,8 +149,9 @@ function selectKelompok(kelompok) {
         classBtnContainer.appendChild(btn);
       });
     }
-    selectKelas(classes[0]);
+    selectKelas("PAUD");
   } else {
+    // PRA REMAJA, REMAJA, MUDA-MUDI, BAPAK, IBU TANPA KELAS TAMBAHAN
     if (classnav) classnav.classList.add("hidden");
     selectKelas("Umum");
   }
@@ -171,7 +165,7 @@ function selectKelas(kelas, btnEl) {
   }
   const titleEl = document.getElementById("presensi-class-title");
   if (titleEl) {
-    if (["Caberawit", "Pra Remaja", "Remaja"].includes(currentKelompok)) {
+    if (currentKelompok === "Caberawit") {
       titleEl.innerText = `Presensi: ${currentKelompok} (${currentKelas})`;
     } else {
       titleEl.innerText = `Presensi: ${currentKelompok}`;
@@ -230,12 +224,9 @@ function renderJamaah() {
     const kelompok = String(j.Kelompok || "Unassigned").trim();
     let displayKelas = "-";
 
+    // Hanya Caberawit yang memiliki tingkat kelas/bacaan
     if (kelompok === "Caberawit") {
       displayKelas = j.Kelas || "PAUD";
-    } else if (kelompok === "Pra Remaja") {
-      displayKelas = j.Kelas || "Kelas 7";
-    } else if (kelompok === "Remaja") {
-      displayKelas = j.Kelas || "Kelas 10";
     } else {
       displayKelas = "-";
     }
@@ -265,7 +256,7 @@ function renderPresensiTable() {
     const matchKelompok = String(j.Kelompok || "Caberawit").trim().toLowerCase() === String(currentKelompok).trim().toLowerCase();
     
     let matchKelas = true;
-    if (["Caberawit", "Pra Remaja", "Remaja"].includes(currentKelompok)) {
+    if (currentKelompok === "Caberawit") {
       matchKelas = String(j.Kelas || "").trim().toLowerCase() === String(currentKelas).trim().toLowerCase();
     }
     
@@ -275,7 +266,7 @@ function renderPresensiTable() {
   const tbody = document.getElementById("table-presensi-body");
   if (!tbody) return;
 
-  const displayTitle = (["Caberawit", "Pra Remaja", "Remaja"].includes(currentKelompok)) ? `${currentKelompok} (${currentKelas})` : currentKelompok;
+  const displayTitle = (currentKelompok === "Caberawit") ? `${currentKelompok} (${currentKelas})` : currentKelompok;
 
   if (filteredJamaah.length === 0) {
     tbody.innerHTML = `
@@ -307,7 +298,7 @@ function renderPresensiTable() {
         pDateStr = String(p.Tanggal).split("T")[0].trim();
       }
 
-      const checkKelas = (["Caberawit", "Pra Remaja", "Remaja"].includes(currentKelompok)) ? (pKls === String(currentKelas).trim().toLowerCase()) : true;
+      const checkKelas = (currentKelompok === "Caberawit") ? (pKls === String(currentKelas).trim().toLowerCase()) : true;
 
       if (pKel === String(currentKelompok).trim().toLowerCase() && checkKelas && pDateStr === targetDate) {
         existingStatusMap[String(p.NamaJamaah).trim().toLowerCase()] = String(p.StatusPresensi || "Hadir").trim();
@@ -361,7 +352,7 @@ function updateRekapMingguan() {
     const pKls = String(p.Kelas || "Umum").trim().toLowerCase();
     const pKlsTarget = String(currentKelas).trim().toLowerCase();
 
-    const checkKelas = (["Caberawit", "Pra Remaja", "Remaja"].includes(currentKelompok)) ? (pKls === pKlsTarget) : true;
+    const checkKelas = (currentKelompok === "Caberawit") ? (pKls === pKlsTarget) : true;
 
     if (pKel === pKelTarget && checkKelas) {
       let pDateStr = "";
@@ -394,7 +385,7 @@ function updateRekapMingguan() {
   if (document.getElementById("stat-alfa")) document.getElementById("stat-alfa").innerText = a;
   
   if (document.getElementById("rekap-mingguan-title")) {
-    const displayTitle = (["Caberawit", "Pra Remaja", "Remaja"].includes(currentKelompok)) ? `${currentKelompok} (${currentKelas})` : currentKelompok;
+    const displayTitle = (currentKelompok === "Caberawit") ? `${currentKelompok} (${currentKelas})` : currentKelompok;
     document.getElementById("rekap-mingguan-title").innerHTML = `<i class="fa-solid fa-calendar-week mr-2"></i> Rekapan Presensi Minggu Ini: ${displayTitle}`;
   }
 }
@@ -414,7 +405,7 @@ async function submitPresensi() {
     const matchKelompok = String(j.Kelompok || "Caberawit").trim().toLowerCase() === String(currentKelompok).trim().toLowerCase();
     
     let matchKelas = true;
-    if (["Caberawit", "Pra Remaja", "Remaja"].includes(currentKelompok)) {
+    if (currentKelompok === "Caberawit") {
       matchKelas = String(j.Kelas || "").trim().toLowerCase() === String(currentKelas).trim().toLowerCase();
     }
     return matchStatus && matchKelompok && matchKelas;
@@ -433,7 +424,7 @@ async function submitPresensi() {
     }
     records.push({
       kelompok: currentKelompok,
-      kelas: (["Caberawit", "Pra Remaja", "Remaja"].includes(currentKelompok)) ? currentKelas : "Umum",
+      kelas: (currentKelompok === "Caberawit") ? currentKelas : "Umum",
       tanggal: date,
       hari: day,
       nama: j.Nama,
@@ -478,17 +469,9 @@ function onChartFilterChange() {
   const kVal = kelompokSelect.value;
   kelasSelect.innerHTML = "";
 
-  let options = [];
   if (kVal === "Caberawit") {
-    options = ["PAUD", "Tilawati 1", "Tilawati 2", "Tilawati 3", "Tilawati 4", "Tilawati 5", "Al-Qur'an"];
-  } else if (kVal === "Pra Remaja") {
-    options = ["Kelas 7", "Kelas 8", "Kelas 9"];
-  } else if (kVal === "Remaja") {
-    options = ["Kelas 10", "Kelas 11", "Kelas 12"];
-  }
-
-  if (options.length > 0) {
     kelasSelect.style.display = "inline-block";
+    const options = ["PAUD", "Tilawati 1", "Tilawati 2", "Tilawati 3", "Tilawati 4", "Tilawati 5", "Al-Qur'an"];
     options.forEach(opt => {
       kelasSelect.innerHTML += `<option value="${opt}">${opt}</option>`;
     });
@@ -517,7 +500,7 @@ function renderChart() {
     const pKel = String(p.Kelompok || "Caberawit").trim().toLowerCase();
     const pKls = String(p.Kelas || "Umum").trim().toLowerCase();
     
-    const checkKelas = (["Caberawit", "Pra Remaja", "Remaja"].includes(selectedKelompok)) ? (pKls === String(selectedKelas).trim().toLowerCase()) : true;
+    const checkKelas = (selectedKelompok === "Caberawit") ? (pKls === String(selectedKelas).trim().toLowerCase()) : true;
 
     if (pKel !== String(selectedKelompok).trim().toLowerCase() || !checkKelas) {
       return;
@@ -799,7 +782,6 @@ function openFormJamaah(data = null) {
   const fieldsEl = document.getElementById("modal-form-fields");
   if (titleEl) titleEl.innerText = data ? "Edit Data Jamaah" : "Tambah Data Jamaah";
   
-  // Format tanggal lahir presisi ke YYYY-MM-DD
   let formattedDob = "";
   if (data && data.TanggalLahir) {
     if (data.TanggalLahir instanceof Date) {
@@ -872,22 +854,16 @@ function onKelompokChange(selectedKelas = null) {
   const kVal = kValEl.value;
   kelasSelect.innerHTML = "";
 
-  let options = [];
+  // HANYA CABERAWIT YANG MENGGUNAKAN DROPDOWN KELAS/BACAAN
   if (kVal === "Caberawit") {
-    options = ["PAUD", "Tilawati 1", "Tilawati 2", "Tilawati 3", "Tilawati 4", "Tilawati 5", "Al-Qur'an"];
-  } else if (kVal === "Pra Remaja") {
-    options = ["Kelas 7", "Kelas 8", "Kelas 9"];
-  } else if (kVal === "Remaja") {
-    options = ["Kelas 10", "Kelas 11", "Kelas 12"];
-  }
-
-  if (options.length > 0) {
     if (kelasWrapper) kelasWrapper.style.display = "block";
+    const options = ["PAUD", "Tilawati 1", "Tilawati 2", "Tilawati 3", "Tilawati 4", "Tilawati 5", "Al-Qur'an"];
     options.forEach(opt => {
       const isSelected = (selectedKelas && String(selectedKelas).trim().toLowerCase() === String(opt).trim().toLowerCase()) ? "selected" : "";
       kelasSelect.innerHTML += `<option value="${opt}" ${isSelected}>${opt}</option>`;
     });
   } else {
+    // PRA REMAJA, REMAJA, MUDA-MUDI, BAPAK-BAPAK, IBU-IBU DIBUAT SATU KELAS (UMUM)
     if (kelasWrapper) kelasWrapper.style.display = "none";
     kelasSelect.innerHTML = `<option value="Umum" selected>Umum</option>`;
   }
