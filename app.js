@@ -1,5 +1,5 @@
 // ==========================================
-// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH
+// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (EDIT FIX & PREFILL UPDATED)
 // ==========================================
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby4HkEiK4yatFJvIn32c7I9dyYZ-Oy3NBIXr3zHJXGyOHMvoDGo0KzQO37MbDrghl2ARw/exec";
@@ -799,12 +799,23 @@ function openFormJamaah(data = null) {
   const fieldsEl = document.getElementById("modal-form-fields");
   if (titleEl) titleEl.innerText = data ? "Edit Data Jamaah" : "Tambah Data Jamaah";
   
-  const formattedDob = data && data.TanggalLahir ? data.TanggalLahir.toString().split("T")[0] : "";
+  // Format tanggal lahir presisi ke YYYY-MM-DD
+  let formattedDob = "";
+  if (data && data.TanggalLahir) {
+    if (data.TanggalLahir instanceof Date) {
+      const y = data.TanggalLahir.getFullYear();
+      const m = String(data.TanggalLahir.getMonth() + 1).padStart(2, '0');
+      const d = String(data.TanggalLahir.getDate()).padStart(2, '0');
+      formattedDob = `${y}-${m}-${d}`;
+    } else {
+      formattedDob = data.TanggalLahir.toString().split("T")[0].trim();
+    }
+  }
 
   if (fieldsEl) {
     fieldsEl.innerHTML = `
       <input type="hidden" name="ID" value="${data ? data.ID : ''}">
-      <div><label class="block text-xs font-semibold mb-1">Nama Lengkap</label><input type="text" name="Nama" value="${data ? data.Nama : ''}" required class="w-full border rounded px-3 py-1.5 text-sm"></div>
+      <div><label class="block text-xs font-semibold mb-1">Nama Lengkap</label><input type="text" name="Nama" value="${data ? (data.Nama || '') : ''}" required class="w-full border rounded px-3 py-1.5 text-sm"></div>
       <div><label class="block text-xs font-semibold mb-1">Tanggal Lahir</label><input type="date" name="TanggalLahir" value="${formattedDob}" required class="w-full border rounded px-3 py-1.5 text-sm"></div>
       
       <div>
@@ -832,11 +843,11 @@ function openFormJamaah(data = null) {
         </select>
       </div>
       
-      <div><label class="block text-xs font-semibold mb-1">Alamat</label><textarea name="Alamat" class="w-full border rounded px-3 py-1.5 text-sm">${data ? data.Alamat : ''}</textarea></div>
+      <div><label class="block text-xs font-semibold mb-1">Alamat</label><textarea name="Alamat" class="w-full border rounded px-3 py-1.5 text-sm">${data ? (data.Alamat || '') : ''}</textarea></div>
       <div>
         <label class="block text-xs font-semibold mb-1">Status</label>
         <select name="Status" class="w-full border rounded px-3 py-1.5 text-sm">
-          <option value="Aktif" ${data && data.Status === 'Aktif' ? 'selected' : ''}>Aktif</option>
+          <option value="Aktif" ${!data || data.Status === 'Aktif' ? 'selected' : ''}>Aktif</option>
           <option value="Pindah/Non-Aktif" ${data && data.Status === 'Pindah/Non-Aktif' ? 'selected' : ''}>Pindah/Non-Aktif</option>
         </select>
       </div>
@@ -873,7 +884,7 @@ function onKelompokChange(selectedKelas = null) {
   if (options.length > 0) {
     if (kelasWrapper) kelasWrapper.style.display = "block";
     options.forEach(opt => {
-      const isSelected = (selectedKelas === opt) ? "selected" : "";
+      const isSelected = (selectedKelas && String(selectedKelas).trim().toLowerCase() === String(opt).trim().toLowerCase()) ? "selected" : "";
       kelasSelect.innerHTML += `<option value="${opt}" ${isSelected}>${opt}</option>`;
     });
   } else {
