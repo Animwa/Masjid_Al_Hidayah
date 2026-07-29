@@ -1,14 +1,15 @@
 // ==========================================
-// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (JURNAL & KBM UPDATED)
+// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (COMPLETE AGENDA & REKAP JURNAL)
 // ==========================================
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyhvAT_4aXXC30xo9AtyL-S_TMeZ21bmJR0jbB1mpx-ZB5Yz00Ovb4cDZTIDt5qj7o5tg/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyXX-UdtHWrROk1h32P1neXAG1yvAzH6tpjsSUSaAjbdYdksg82khO69bre2XyCV6ZOjQ/exec";
 
 let appData = {
   pengurus: [],
   inventaris: [],
   jamaah: [],
   presensi: [],
+  kegiatan: [],
   admins: []
 };
 
@@ -17,7 +18,6 @@ let currentKelompok = "Caberawit";
 let currentKelas = "PAUD";
 let activeFormType = null;
 
-// Map untuk menyimpan Instance Chart.js agar tidak menumpuk/bentrok saat render ulang
 let chartInstances = {};
 
 if (typeof ChartDataLabels !== 'undefined') {
@@ -27,7 +27,7 @@ if (typeof ChartDataLabels !== 'undefined') {
 document.addEventListener("DOMContentLoaded", () => {
   setDefaultDate();
   loadAllData();
-  switchTab("pengurus");
+  switchTab("beranda");
 });
 
 function setDefaultDate() {
@@ -64,6 +64,7 @@ async function loadAllData() {
         inventaris: Array.isArray(json.inventaris) ? json.inventaris : [],
         jamaah: Array.isArray(json.jamaah) ? json.jamaah : [],
         presensi: Array.isArray(json.presensi) ? json.presensi : [],
+        kegiatan: Array.isArray(json.kegiatan) ? json.kegiatan : [],
         admins: Array.isArray(json.admins) ? json.admins : []
       };
       renderAllViews();
@@ -77,10 +78,12 @@ async function loadAllData() {
 }
 
 function renderAllViews() {
+  renderBerandaKegiatan();
   renderPengurus();
   renderInventaris();
   renderJamaah();
   renderPresensiTable();
+  renderJurnalRekap();
   
   const rekapSection = document.getElementById("view-rekapitulasi");
   if (rekapSection && !rekapSection.classList.contains("hidden")) {
@@ -110,6 +113,10 @@ function switchTab(tabName) {
 
   if (tabName === "rekapitulasi") {
     onChartFilterChange();
+  } else if (tabName === "jurnal-rekap") {
+    renderJurnalRekap();
+  } else if (tabName === "beranda") {
+    renderBerandaKegiatan();
   }
 
   const menuContainer = document.getElementById("nav-menu-container");
@@ -186,6 +193,50 @@ function calculateAge(dobString) {
   const diffMs = Date.now() - dob.getTime();
   const ageDate = new Date(diffMs);
   return Math.abs(ageDate.getUTCFullYear() - 1970) + " Thn";
+}
+
+// 0. RENDER BERANDA AGENDA KEGIATAN
+function renderBerandaKegiatan() {
+  const container = document.getElementById("kegiatan-cards-container");
+  if (!container) return;
+
+  const kegiatanList = Array.isArray(appData.kegiatan) ? appData.kegiatan : [];
+
+  if (kegiatanList.length === 0) {
+    container.innerHTML = `
+      <div class="col-span-full bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-400">
+        <i class="fa-solid fa-calendar-xmark text-4xl mb-2 text-slate-300"></i>
+        <p class="text-sm font-medium">Belum ada agenda kegiatan mendatang yang ditambahkan.</p>
+      </div>
+    `;
+  } else {
+    container.innerHTML = kegiatanList.map(k => `
+      <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4">
+        <div>
+          <div class="flex items-center justify-between gap-2 border-b border-slate-100 pb-3 mb-3">
+            <span class="text-xs px-2.5 py-1 bg-emerald-50 text-emerald-700 font-bold rounded-full border border-emerald-200 flex items-center gap-1">
+              <i class="fa-solid fa-calendar-day"></i> ${k.Hari || '-'}, ${k.Tanggal ? k.Tanggal.toString().split("T")[0] : '-'}
+            </span>
+            <span class="text-xs text-amber-600 font-bold flex items-center gap-1">
+              <i class="fa-solid fa-clock"></i> ${k.Jam || 'WIB'}
+            </span>
+          </div>
+          <h3 class="font-bold text-slate-800 text-base mb-1">${k.Kegiatan || '-'}</h3>
+          <p class="text-xs text-slate-600 flex items-center gap-1 mb-2">
+            <i class="fa-solid fa-user-tie text-teal-600"></i> <b>Pemateri:</b> ${k.Pemateri || '-'}
+          </p>
+          <p class="text-xs text-slate-500 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+            ${k.Keterangan || 'Tidak ada catatan tambahan.'}
+          </p>
+        </div>
+        <div class="admin-only hidden flex justify-end pt-2 border-t border-slate-100">
+          <button onclick="deleteRow('Kegiatan', '${k.ID}')" class="text-rose-600 hover:text-rose-800 text-xs font-semibold flex items-center gap-1 p-1">
+            <i class="fa-solid fa-trash"></i> Hapus Agenda
+          </button>
+        </div>
+      </div>
+    `).join("");
+  }
 }
 
 function renderPengurus() {
@@ -273,7 +324,6 @@ function renderPresensiTable() {
 
   const displayTitle = (currentKelompok === "Caberawit") ? `${currentKelompok} (${currentKelas})` : currentKelompok;
 
-  // Elemen-elemen Form Jurnal & Kegiatan
   const jenisKegiatanEl = document.getElementById("presensi-jenis-kegiatan");
   const pemateriEl = document.getElementById("presensi-pemateri");
   const jurnalEl = document.getElementById("presensi-jurnal");
@@ -326,7 +376,6 @@ function renderPresensiTable() {
           keterangan: String(p.Keterangan || "").trim()
         };
 
-        // Mengambil data jurnal & kegiatan hari tersebut dari record eksisting
         if (p.JenisKegiatan) savedJenisKegiatan = p.JenisKegiatan;
         if (p.Pemateri) savedPemateri = p.Pemateri;
         if (p.Jurnal) savedJurnal = p.Jurnal;
@@ -334,7 +383,6 @@ function renderPresensiTable() {
       }
     });
 
-    // Menampilkan kembali isi jurnal jika tanggal tersebut sudah pernah diisi
     if (jenisKegiatanEl) jenisKegiatanEl.value = savedJenisKegiatan;
     if (pemateriEl) pemateriEl.value = savedPemateri;
     if (jurnalEl) jurnalEl.value = savedJurnal;
@@ -526,10 +574,91 @@ async function submitPresensi() {
   }
 }
 
-// ==========================================
-// RENDER SELURUH GRAFIK REKAPITULASI BERURUTAN KE BAWAH
-// ==========================================
+// 5. RENDER REKAPITULASI JURNAL TIAP KELAS (SCROLLABLE)
+function renderJurnalRekap() {
+  const container = document.getElementById("jurnal-cards-wrapper");
+  if (!container) return;
 
+  const presensiList = Array.isArray(appData.presensi) ? appData.presensi : [];
+
+  const classConfigs = [
+    { kelompok: "Caberawit", kelas: "PAUD", title: "Caberawit - PAUD" },
+    { kelompok: "Caberawit", kelas: "Tilawati 1", title: "Caberawit - Tilawati 1" },
+    { kelompok: "Caberawit", kelas: "Tilawati 2", title: "Caberawit - Tilawati 2" },
+    { kelompok: "Caberawit", kelas: "Tilawati 3", title: "Caberawit - Tilawati 3" },
+    { kelompok: "Caberawit", kelas: "Tilawati 4", title: "Caberawit - Tilawati 4" },
+    { kelompok: "Caberawit", kelas: "Tilawati 5", title: "Caberawit - Tilawati 5" },
+    { kelompok: "Caberawit", kelas: "Al-Qur'an", title: "Caberawit - Al-Qur'an" },
+    { kelompok: "Pra Remaja", kelas: "Umum", title: "Pra Remaja (SMP)" },
+    { kelompok: "Remaja", kelas: "Umum", title: "Remaja (SMA)" },
+    { kelompok: "Muda-Mudi", kelas: "Umum", title: "Muda-Mudi" },
+    { kelompok: "Bapak-Bapak", kelas: "Umum", title: "Bapak-Bapak" },
+    { kelompok: "Ibu-Ibu", kelas: "Umum", title: "Ibu-Ibu" }
+  ];
+
+  container.innerHTML = classConfigs.map(cfg => {
+    // Kelompokkan data jurnal berdasarkan Tanggal unik untuk kelas ini
+    let journalsByDate = {};
+
+    presensiList.forEach(p => {
+      const pKel = String(p.Kelompok || "").trim().toLowerCase();
+      const pKls = String(p.Kelas || "Umum").trim().toLowerCase();
+
+      const matchKel = pKel === String(cfg.kelompok).trim().toLowerCase();
+      const matchKls = (cfg.kelompok === "Caberawit") ? (pKls === String(cfg.kelas).trim().toLowerCase()) : true;
+
+      if (matchKel && matchKls && p.Tanggal) {
+        let pDateStr = (p.Tanggal instanceof Date) ? p.Tanggal.toISOString().split("T")[0] : String(p.Tanggal).split("T")[0].trim();
+
+        if (!journalsByDate[pDateStr]) {
+          journalsByDate[pDateStr] = {
+            tanggal: pDateStr,
+            hari: p.Hari || '',
+            jenisKegiatan: p.JenisKegiatan || '-',
+            pemateri: p.Pemateri || '-',
+            jurnal: p.Jurnal || '-',
+            kendala: p.Kendala || '-'
+          };
+        }
+      }
+    });
+
+    const datesList = Object.values(journalsByDate).sort((a,b) => b.tanggal.localeCompare(a.tanggal));
+
+    return `
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <h3 class="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-teal-600"></span> ${cfg.title}
+          </h3>
+          <span class="text-xs font-semibold px-2.5 py-1 bg-teal-50 text-teal-700 rounded-full border border-teal-200">
+            ${datesList.length} Pertemuan Dicatat
+          </span>
+        </div>
+
+        ${datesList.length === 0 ? `
+          <p class="text-xs text-slate-400 italic py-2">Belum ada jurnal pengajian yang terdata untuk kelas ini.</p>
+        ` : `
+          <div class="space-y-3 max-h-72 overflow-y-auto pr-1">
+            ${datesList.map(j => `
+              <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs space-y-1.5">
+                <div class="flex justify-between items-center text-slate-700 font-bold border-b border-slate-200/60 pb-1.5 mb-1.5">
+                  <span class="text-teal-800"><i class="fa-solid fa-calendar-day mr-1"></i> ${j.Hari}, ${j.tanggal}</span>
+                  <span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-[10px]">${j.jenisKegiatan}</span>
+                </div>
+                <p><b class="text-slate-700">Pemateri:</b> ${j.pemateri}</p>
+                <p><b class="text-slate-700">Capaian Jurnal:</b> ${j.jurnal}</p>
+                <p class="text-slate-500"><b class="text-slate-700">Kendala KBM:</b> ${j.kendala}</p>
+              </div>
+            `).join("")}
+          </div>
+        `}
+      </div>
+    `;
+  }).join("");
+}
+
+// 6. RENDER SELURUH GRAFIK REKAPITULASI
 function onChartFilterChange() {
   renderAllCharts();
 }
@@ -747,102 +876,25 @@ function renderSingleChart(canvasId, selectedKelompok, selectedKelas) {
   });
 }
 
-function openLoginModal() {
-  const modal = document.getElementById("modal-login");
-  if (modal) modal.classList.remove("hidden");
-}
-
-function openAddAdminModal() {
-  const modal = document.getElementById("modal-add-admin");
-  if (modal) modal.classList.remove("hidden");
-}
-
-function closeModal(id) {
-  const modal = document.getElementById(id);
-  if (modal) modal.classList.add("hidden");
-}
-
-async function handleLogin(e) {
-  e.preventDefault();
-  const namaInput = document.getElementById("login-nama");
-  const pinInput = document.getElementById("login-pin");
-  if (!namaInput || !pinInput) return;
-
-  const nama = namaInput.value;
-  const pin = pinInput.value;
-
-  showMessage("Verifikasi Admin...", "info");
-  try {
-    const res = await fetch(SCRIPT_URL, {
-      method: "POST",
-      body: JSON.stringify({ action: "login", nama: nama, pin: pin })
-    });
-    const json = await res.json();
-    if (json.success) {
-      currentAdmin = { nama: json.admin.nama, role: json.admin.role, pin: pin };
-      updateAdminUI();
-      closeModal("modal-login");
-      showMessage(`Selamat datang, ${currentAdmin.nama}!`, "success");
-    } else {
-      showMessage(json.message, "error");
-    }
-  } catch (err) {
-    showMessage("Gagal verifikasi login.", "error");
+function openFormKegiatan() {
+  activeFormType = "Kegiatan";
+  const titleEl = document.getElementById("modal-form-title");
+  const fieldsEl = document.getElementById("modal-form-fields");
+  if (titleEl) titleEl.innerText = "Tambah Agenda Kegiatan Baru";
+  if (fieldsEl) {
+    fieldsEl.innerHTML = `
+      <input type="hidden" name="ID" value="">
+      <div><label class="block text-xs font-semibold mb-1">Nama Kegiatan</label><input type="text" name="Kegiatan" required class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Misal: Pengajian Rutin Jumat Malam"></div>
+      <div class="grid grid-cols-2 gap-2">
+        <div><label class="block text-xs font-semibold mb-1">Hari</label><input type="text" name="Hari" required class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Misal: Jumat"></div>
+        <div><label class="block text-xs font-semibold mb-1">Tanggal</label><input type="date" name="Tanggal" required class="w-full border rounded px-3 py-1.5 text-sm"></div>
+      </div>
+      <div><label class="block text-xs font-semibold mb-1">Jam / Waktu</label><input type="text" name="Jam" required class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Misal: 19:30 - Selesai"></div>
+      <div><label class="block text-xs font-semibold mb-1">Pemateri / Pengajar</label><input type="text" name="Pemateri" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Nama Ustaz / Penceramah"></div>
+      <div><label class="block text-xs font-semibold mb-1">Keterangan / Lokasi</label><textarea name="Keterangan" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Catatan lokasi atau perlengkapan yang perlu dibawa"></textarea></div>
+    `;
   }
-}
-
-function logoutAdmin() {
-  currentAdmin = null;
-  updateAdminUI();
-  showMessage("Anda telah logout dari mode Admin.", "info");
-}
-
-function updateAdminUI() {
-  const adminElements = document.querySelectorAll(".admin-only");
-  if (currentAdmin) {
-    adminElements.forEach(el => el.classList.remove("hidden"));
-    if (document.getElementById("btn-login-modal")) document.getElementById("btn-login-modal").classList.add("hidden");
-    if (document.getElementById("btn-logout")) document.getElementById("btn-logout").classList.remove("hidden");
-    if (document.getElementById("admin-badge")) document.getElementById("admin-badge").classList.remove("hidden");
-    if (document.getElementById("admin-name-display")) document.getElementById("admin-name-display").innerText = currentAdmin.nama;
-
-    if (currentAdmin.role === "Utama" && document.getElementById("btn-admin-manage")) {
-      document.getElementById("btn-admin-manage").classList.remove("hidden");
-    }
-  } else {
-    adminElements.forEach(el => el.classList.add("hidden"));
-    if (document.getElementById("btn-login-modal")) document.getElementById("btn-login-modal").classList.remove("hidden");
-    if (document.getElementById("btn-logout")) document.getElementById("btn-logout").classList.add("hidden");
-    if (document.getElementById("admin-badge")) document.getElementById("admin-badge").classList.add("hidden");
-    if (document.getElementById("btn-admin-manage")) document.getElementById("btn-admin-manage").classList.add("hidden");
-  }
-  renderAllViews();
-}
-
-async function handleAddAdmin(e) {
-  e.preventDefault();
-  const namaInput = document.getElementById("new-admin-nama");
-  const pinInput = document.getElementById("new-admin-pin");
-  if (!namaInput || !pinInput) return;
-
-  const nama = namaInput.value;
-  const pin = pinInput.value;
-
-  try {
-    const res = await fetch(SCRIPT_URL, {
-      method: "POST",
-      body: JSON.stringify({ action: "add_admin", nama: nama, pin: pin, adminSession: currentAdmin })
-    });
-    const json = await res.json();
-    if (json.success) {
-      showMessage(json.message, "success");
-      closeModal("modal-add-admin");
-    } else {
-      showMessage(json.message, "error");
-    }
-  } catch (err) {
-    showMessage("Gagal menambahkan admin.", "error");
-  }
+  openModal("modal-form");
 }
 
 function openFormPengurus() {
@@ -1025,6 +1077,104 @@ async function deleteRow(sheetName, id) {
     }
   } catch (err) {
     showMessage("Gagal menghapus data.", "error");
+  }
+}
+
+function openLoginModal() {
+  const modal = document.getElementById("modal-login");
+  if (modal) modal.classList.remove("hidden");
+}
+
+function openAddAdminModal() {
+  const modal = document.getElementById("modal-add-admin");
+  if (modal) modal.classList.remove("hidden");
+}
+
+function closeModal(id) {
+  const modal = document.getElementById(id);
+  if (modal) modal.classList.add("hidden");
+}
+
+async function handleLogin(e) {
+  e.preventDefault();
+  const namaInput = document.getElementById("login-nama");
+  const pinInput = document.getElementById("login-pin");
+  if (!namaInput || !pinInput) return;
+
+  const nama = namaInput.value;
+  const pin = pinInput.value;
+
+  showMessage("Verifikasi Admin...", "info");
+  try {
+    const res = await fetch(SCRIPT_URL, {
+      method: "POST",
+      body: JSON.stringify({ action: "login", nama: nama, pin: pin })
+    });
+    const json = await res.json();
+    if (json.success) {
+      currentAdmin = { nama: json.admin.nama, role: json.admin.role, pin: pin };
+      updateAdminUI();
+      closeModal("modal-login");
+      showMessage(`Selamat datang, ${currentAdmin.nama}!`, "success");
+    } else {
+      showMessage(json.message, "error");
+    }
+  } catch (err) {
+    showMessage("Gagal verifikasi login.", "error");
+  }
+}
+
+function logoutAdmin() {
+  currentAdmin = null;
+  updateAdminUI();
+  showMessage("Anda telah logout dari mode Admin.", "info");
+}
+
+function updateAdminUI() {
+  const adminElements = document.querySelectorAll(".admin-only");
+  if (currentAdmin) {
+    adminElements.forEach(el => el.classList.remove("hidden"));
+    if (document.getElementById("btn-login-modal")) document.getElementById("btn-login-modal").classList.add("hidden");
+    if (document.getElementById("btn-logout")) document.getElementById("btn-logout").classList.remove("hidden");
+    if (document.getElementById("admin-badge")) document.getElementById("admin-badge").classList.remove("hidden");
+    if (document.getElementById("admin-name-display")) document.getElementById("admin-name-display").innerText = currentAdmin.nama;
+
+    if (currentAdmin.role === "Utama" && document.getElementById("btn-admin-manage")) {
+      document.getElementById("btn-admin-manage").classList.remove("hidden");
+    }
+  } else {
+    adminElements.forEach(el => el.classList.add("hidden"));
+    if (document.getElementById("btn-login-modal")) document.getElementById("btn-login-modal").classList.remove("hidden");
+    if (document.getElementById("btn-logout")) document.getElementById("btn-logout").classList.add("hidden");
+    if (document.getElementById("admin-badge")) document.getElementById("admin-badge").classList.add("hidden");
+    if (document.getElementById("btn-admin-manage")) document.getElementById("btn-admin-manage").classList.add("hidden");
+  }
+  renderAllViews();
+}
+
+async function handleAddAdmin(e) {
+  e.preventDefault();
+  const namaInput = document.getElementById("new-admin-nama");
+  const pinInput = document.getElementById("new-admin-pin");
+  if (!namaInput || !pinInput) return;
+
+  const nama = namaInput.value;
+  const pin = pinInput.value;
+
+  try {
+    const res = await fetch(SCRIPT_URL, {
+      method: "POST",
+      body: JSON.stringify({ action: "add_admin", nama: nama, pin: pin, adminSession: currentAdmin })
+    });
+    const json = await res.json();
+    if (json.success) {
+      showMessage(json.message, "success");
+      closeModal("modal-add-admin");
+    } else {
+      showMessage(json.message, "error");
+    }
+  } catch (err) {
+    showMessage("Gagal menambahkan admin.", "error");
   }
 }
 
