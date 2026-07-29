@@ -1,5 +1,5 @@
 // ==========================================
-// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (PRE-FILL & PERMISSION FIXED)
+// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH
 // ==========================================
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby4HkEiK4yatFJvIn32c7I9dyYZ-Oy3NBIXr3zHJXGyOHMvoDGo0KzQO37MbDrghl2ARw/exec";
@@ -14,7 +14,7 @@ let appData = {
 
 let currentAdmin = null;
 let currentKelompok = "Caberawit";
-let currentKelas = "Kelas 1";
+let currentKelas = "PAUD";
 let activeFormType = null;
 let rekapChartInstance = null;
 
@@ -49,7 +49,6 @@ function updateDayLabel() {
   const dayEl = document.getElementById("presensi-day");
   if (dayEl) dayEl.value = days[d.getDay()];
   
-  // Render ulang tabel presensi sesuai tanggal yang baru dipilih
   renderPresensiTable();
 }
 
@@ -76,7 +75,6 @@ function renderAllViews() {
   renderJamaah();
   renderPresensiTable();
   
-  // Null-safe check agar tidak crash jika tab rekapitulasi belum aktif
   const rekapSection = document.getElementById("view-rekapitulasi");
   if (rekapSection && !rekapSection.classList.contains("hidden")) {
     onChartFilterChange();
@@ -97,7 +95,6 @@ function switchTab(tabName) {
 
   if (tabName === "kelompok") {
     if (subnav) subnav.classList.remove("hidden");
-    if (classnav) classnav.classList.remove("hidden");
     selectKelompok(currentKelompok);
   } else {
     if (subnav) subnav.classList.add("hidden");
@@ -108,7 +105,6 @@ function switchTab(tabName) {
     onChartFilterChange();
   }
 
-  // Tutup menu seluler/hamburger secara otomatis setelah diklik
   const menuContainer = document.getElementById("nav-menu-container");
   const icon = document.getElementById("hamburger-icon");
   if (window.innerWidth < 768 && menuContainer && menuContainer.classList.contains("show-mobile-menu")) {
@@ -136,21 +132,30 @@ function selectKelompok(kelompok) {
     document.getElementById(idMap[kelompok]).classList.add("active");
   }
 
+  const classnav = document.getElementById("classnav-container");
   const classBtnContainer = document.getElementById("class-buttons");
-  if (classBtnContainer) {
-    classBtnContainer.innerHTML = "";
-    let classes = (kelompok === "Caberawit") ? ["Kelas 1", "Kelas 2", "Kelas 3", "Kelas 4", "Kelas 5", "Kelas 6"] : ["1 KELAS"];
 
-    classes.forEach((cls, idx) => {
-      const btn = document.createElement("button");
-      btn.className = `classnav-btn px-3 py-1 rounded-md bg-white border border-slate-300 hover:bg-teal-50 text-xs shrink-0 ${idx === 0 ? 'active' : ''}`;
-      btn.innerText = cls;
-      btn.onclick = () => selectKelas(cls, btn);
-      classBtnContainer.appendChild(btn);
-    });
+  if (kelompok === "Caberawit") {
+    // Tampilkan sub-nav kelas untuk Caberawit
+    if (classnav) classnav.classList.remove("hidden");
+    if (classBtnContainer) {
+      classBtnContainer.innerHTML = "";
+      const classes = ["PAUD", "Tilawati 1", "Tilawati 2", "Tilawati 3", "Tilawati 4", "Tilawati 5", "Al-Qur'an"];
+
+      classes.forEach((cls, idx) => {
+        const btn = document.createElement("button");
+        btn.className = `classnav-btn px-3 py-1 rounded-md bg-white border border-slate-300 hover:bg-teal-50 text-xs shrink-0 ${idx === 0 ? 'active' : ''}`;
+        btn.innerText = cls;
+        btn.onclick = () => selectKelas(cls, btn);
+        classBtnContainer.appendChild(btn);
+      });
+    }
+    selectKelas("PAUD");
+  } else {
+    // Sembunyikan sub-nav kelas untuk kelompok usia lain (langsung tanpa embel-embel kelas)
+    if (classnav) classnav.classList.add("hidden");
+    selectKelas("Umum");
   }
-
-  selectKelas((kelompok === "Caberawit") ? "Kelas 1" : "1 KELAS");
 }
 
 function selectKelas(kelas, btnEl) {
@@ -160,7 +165,13 @@ function selectKelas(kelas, btnEl) {
     btnEl.classList.add("active");
   }
   const titleEl = document.getElementById("presensi-class-title");
-  if (titleEl) titleEl.innerText = `Presensi: ${currentKelompok} (${currentKelas})`;
+  if (titleEl) {
+    if (currentKelompok === "Caberawit") {
+      titleEl.innerText = `Presensi: Caberawit (${currentKelas})`;
+    } else {
+      titleEl.innerText = `Presensi: ${currentKelompok}`;
+    }
+  }
   renderPresensiTable();
 }
 
@@ -215,7 +226,7 @@ function renderJamaah() {
       <td class="px-3 sm:px-4 py-3 font-semibold text-slate-800">${j.Nama}</td>
       <td class="px-3 sm:px-4 py-3 whitespace-nowrap">${j.TanggalLahir ? j.TanggalLahir.toString().split("T")[0] : '-'} <span class="text-xs text-emerald-600 font-bold">(${calculateAge(j.TanggalLahir)})</span></td>
       <td class="px-3 sm:px-4 py-3"><span class="px-2 py-1 rounded bg-teal-50 text-teal-700 font-semibold text-xs">${j.Kelompok || 'Unassigned'}</span></td>
-      <td class="px-3 sm:px-4 py-3"><span class="px-2 py-1 rounded bg-slate-100 text-slate-700 font-semibold text-xs">${j.Kelas || '1 KELAS'}</span></td>
+      <td class="px-3 sm:px-4 py-3"><span class="px-2 py-1 rounded bg-slate-100 text-slate-700 font-semibold text-xs">${(j.Kelompok === 'Caberawit') ? (j.Kelas || 'PAUD') : '-'}</span></td>
       <td class="px-3 sm:px-4 py-3">${j.Gender || '-'}</td>
       <td class="px-3 sm:px-4 py-3">${j.Alamat || '-'}</td>
       <td class="px-3 sm:px-4 py-3"><span class="px-2 py-1 rounded-full text-xs font-semibold ${j.Status === 'Aktif' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}">${j.Status}</span></td>
@@ -227,39 +238,43 @@ function renderJamaah() {
   `).join("");
 }
 
-// RENDER TABEL PRESENSI (PRE-FILL DARI SPREADSHEET & HAK AKSES PERMISSION)
 function renderPresensiTable() {
   const filteredJamaah = appData.jamaah.filter(j => {
     const matchStatus = String(j.Status).trim().toLowerCase() === "aktif";
     const matchKelompok = String(j.Kelompok || "Caberawit").trim().toLowerCase() === String(currentKelompok).trim().toLowerCase();
-    const matchKelas = String(j.Kelas || "1 KELAS").trim().toLowerCase() === String(currentKelas).trim().toLowerCase();
+    
+    let matchKelas = true;
+    if (currentKelompok === "Caberawit") {
+      matchKelas = String(j.Kelas || "PAUD").trim().toLowerCase() === String(currentKelas).trim().toLowerCase();
+    }
+    
     return matchStatus && matchKelompok && matchKelas;
   });
 
   const tbody = document.getElementById("table-presensi-body");
   if (!tbody) return;
 
+  const displayTitle = (currentKelompok === "Caberawit") ? `${currentKelompok} (${currentKelas})` : currentKelompok;
+
   if (filteredJamaah.length === 0) {
     tbody.innerHTML = `
       <tr>
         <td colspan="4" class="px-4 py-6 text-center text-slate-400 italic">
-          Belum ada jamaah yang terdaftar di kelompok <b>${currentKelompok} (${currentKelas})</b>.<br>
+          Belum ada jamaah yang terdaftar di kelompok <b>${displayTitle}</b>.<br>
           <span class="text-xs text-slate-500">Buka menu <b>Data Jamaah</b> untuk menambahkan atau menyesuaikan kelas jamaah.</span>
         </td>
       </tr>
     `;
   } else {
-    // Ambil tanggal yang sedang dipilih di form
     const selectedDateInput = document.getElementById("presensi-date");
     const targetDate = selectedDateInput ? selectedDateInput.value : "";
 
-    // Peta status presensi eksis dari Spreadsheet untuk tanggal, kelompok, dan kelas ini
     let existingStatusMap = {};
     appData.presensi.forEach(p => {
       if (!p.Tanggal || !p.NamaJamaah) return;
 
       const pKel = String(p.Kelompok || "").trim().toLowerCase();
-      const pKls = String(p.Kelas || "").trim().toLowerCase();
+      const pKls = String(p.Kelas || "Umum").trim().toLowerCase();
       let pDateStr = "";
 
       if (p.Tanggal instanceof Date) {
@@ -271,20 +286,18 @@ function renderPresensiTable() {
         pDateStr = String(p.Tanggal).split("T")[0].trim();
       }
 
-      if (pKel === String(currentKelompok).trim().toLowerCase() && 
-          pKls === String(currentKelas).trim().toLowerCase() && 
-          pDateStr === targetDate) {
+      const checkKelas = (currentKelompok === "Caberawit") ? (pKls === String(currentKelas).trim().toLowerCase()) : true;
+
+      if (pKel === String(currentKelompok).trim().toLowerCase() && checkKelas && pDateStr === targetDate) {
         existingStatusMap[String(p.NamaJamaah).trim().toLowerCase()] = String(p.StatusPresensi || "Hadir").trim();
       }
     });
 
-    // Cek apakah user sedang login sebagai Admin
     const isReadOnly = !currentAdmin;
     const disabledAttr = isReadOnly ? "disabled cursor-not-allowed opacity-80" : "cursor-pointer";
 
     tbody.innerHTML = filteredJamaah.map((j, idx) => {
       const namaKey = String(j.Nama).trim().toLowerCase();
-      // Ambil status dari database jika sudah pernah diinput, jika belum default-kan ke "Hadir"
       const savedStatus = existingStatusMap[namaKey] || "Hadir";
 
       return `
@@ -324,10 +337,12 @@ function updateRekapMingguan() {
 
     const pKel = String(p.Kelompok || "").trim().toLowerCase();
     const pKelTarget = String(currentKelompok).trim().toLowerCase();
-    const pKls = String(p.Kelas || "").trim().toLowerCase();
+    const pKls = String(p.Kelas || "Umum").trim().toLowerCase();
     const pKlsTarget = String(currentKelas).trim().toLowerCase();
 
-    if (pKel === pKelTarget && pKls === pKlsTarget) {
+    const checkKelas = (currentKelompok === "Caberawit") ? (pKls === pKlsTarget) : true;
+
+    if (pKel === pKelTarget && checkKelas) {
       let pDateStr = "";
       if (p.Tanggal instanceof Date) {
         const y = p.Tanggal.getUTCFullYear();
@@ -356,13 +371,15 @@ function updateRekapMingguan() {
   if (document.getElementById("stat-hadir")) document.getElementById("stat-hadir").innerText = h;
   if (document.getElementById("stat-izin")) document.getElementById("stat-izin").innerText = i;
   if (document.getElementById("stat-alfa")) document.getElementById("stat-alfa").innerText = a;
+  
   if (document.getElementById("rekap-mingguan-title")) {
-    document.getElementById("rekap-mingguan-title").innerHTML = `<i class="fa-solid fa-calendar-week mr-2"></i> Rekapan Presensi Minggu Ini: ${currentKelompok} (${currentKelas})`;
+    const displayTitle = (currentKelompok === "Caberawit") ? `${currentKelompok} (${currentKelas})` : currentKelompok;
+    document.getElementById("rekap-mingguan-title").innerHTML = `<i class="fa-solid fa-calendar-week mr-2"></i> Rekapan Presensi Minggu Ini: ${displayTitle}`;
   }
 }
 
 async function submitPresensi() {
-  if (!currentAdmin) return alert("Akses Admin diperlukan untuk mengubah/menyimpan data!");
+  if (!currentAdmin) return alert("Akses Admin diperlukan untuk menyimpan presensi!");
   
   const dateInput = document.getElementById("presensi-date");
   const dayInput = document.getElementById("presensi-day");
@@ -374,12 +391,16 @@ async function submitPresensi() {
   const filteredJamaah = appData.jamaah.filter(j => {
     const matchStatus = String(j.Status).trim().toLowerCase() === "aktif";
     const matchKelompok = String(j.Kelompok || "Caberawit").trim().toLowerCase() === String(currentKelompok).trim().toLowerCase();
-    const matchKelas = String(j.Kelas || "1 KELAS").trim().toLowerCase() === String(currentKelas).trim().toLowerCase();
+    
+    let matchKelas = true;
+    if (currentKelompok === "Caberawit") {
+      matchKelas = String(j.Kelas || "PAUD").trim().toLowerCase() === String(currentKelas).trim().toLowerCase();
+    }
     return matchStatus && matchKelompok && matchKelas;
   });
 
   if (filteredJamaah.length === 0) {
-    return alert("Tidak ada jamaah di kelas ini untuk disimpan presensinya.");
+    return alert("Tidak ada jamaah di kelompok ini untuk disimpan presensinya.");
   }
 
   const records = [];
@@ -391,7 +412,7 @@ async function submitPresensi() {
     }
     records.push({
       kelompok: currentKelompok,
-      kelas: currentKelas,
+      kelas: (currentKelompok === "Caberawit") ? currentKelas : "Umum",
       tanggal: date,
       hari: day,
       nama: j.Nama,
@@ -436,11 +457,17 @@ function onChartFilterChange() {
   const kVal = kelompokSelect.value;
   kelasSelect.innerHTML = "";
 
-  let options = (kVal === "Caberawit") ? ["Kelas 1", "Kelas 2", "Kelas 3", "Kelas 4", "Kelas 5", "Kelas 6"] : ["1 KELAS"];
-
-  options.forEach(opt => {
-    kelasSelect.innerHTML += `<option value="${opt}">${opt}</option>`;
-  });
+  if (kVal === "Caberawit") {
+    kelasSelect.style.display = "inline-block";
+    const options = ["PAUD", "Tilawati 1", "Tilawati 2", "Tilawati 3", "Tilawati 4", "Tilawati 5", "Al-Qur'an"];
+    options.forEach(opt => {
+      kelasSelect.innerHTML += `<option value="${opt}">${opt}</option>`;
+    });
+  } else {
+    // Sembunyikan dropdown kelas jika kelompok bukan Caberawit
+    kelasSelect.style.display = "none";
+    kelasSelect.innerHTML = `<option value="Umum">Umum</option>`;
+  }
 
   renderChart();
 }
@@ -452,7 +479,7 @@ function renderChart() {
   const ctx = chartCanvas.getContext("2d");
 
   const selectedKelompok = document.getElementById("chart-kelompok-select") ? document.getElementById("chart-kelompok-select").value : "Caberawit";
-  const selectedKelas = document.getElementById("chart-kelas-select") ? document.getElementById("chart-kelas-select").value : "Kelas 1";
+  const selectedKelas = document.getElementById("chart-kelas-select") ? document.getElementById("chart-kelas-select").value : "PAUD";
 
   let dailyDataMap = {};
 
@@ -460,9 +487,11 @@ function renderChart() {
     if (!p.Tanggal) return;
 
     const pKel = String(p.Kelompok || "Caberawit").trim().toLowerCase();
-    const pKls = String(p.Kelas || "1 KELAS").trim().toLowerCase();
+    const pKls = String(p.Kelas || "Umum").trim().toLowerCase();
     
-    if (pKel !== String(selectedKelompok).trim().toLowerCase() || pKls !== String(selectedKelas).trim().toLowerCase()) {
+    const checkKelas = (selectedKelompok === "Caberawit") ? (pKls === String(selectedKelas).trim().toLowerCase()) : true;
+
+    if (pKel !== String(selectedKelompok).trim().toLowerCase() || !checkKelas) {
       return;
     }
 
@@ -568,49 +597,24 @@ function renderChart() {
       responsive: true,
       maintainAspectRatio: false,
       layout: {
-        padding: {
-          top: 25,
-          bottom: 10,
-          left: 10,
-          right: 15
-        }
+        padding: { top: 25, bottom: 10, left: 10, right: 15 }
       },
       plugins: {
         legend: {
           position: "top",
           align: "center",
-          labels: {
-            boxWidth: 15,
-            boxHeight: 12,
-            padding: 20,
-            font: { family: "sans-serif", weight: "bold", size: 12 }
-          }
+          labels: { boxWidth: 15, boxHeight: 12, padding: 20, font: { family: "sans-serif", weight: "bold", size: 12 } }
         },
         tooltip: {
-          callbacks: {
-            label: function(context) {
-              return `${context.dataset.label}: ${context.raw}%`;
-            }
-          }
+          callbacks: { label: function(context) { return `${context.dataset.label}: ${context.raw}%`; } }
         },
         datalabels: {
-          anchor: function(context) {
-            return context.dataset.data[context.dataIndex] >= 100 ? "center" : "end";
-          },
-          align: function(context) {
-            return context.dataset.data[context.dataIndex] >= 100 ? "bottom" : "top";
-          },
+          anchor: function(context) { return context.dataset.data[context.dataIndex] >= 100 ? "center" : "end"; },
+          align: function(context) { return context.dataset.data[context.dataIndex] >= 100 ? "bottom" : "top"; },
           offset: 6,
-          formatter: function(val) {
-            return val > 0 ? val + "%" : "";
-          },
-          font: {
-            size: 11,
-            weight: "bold"
-          },
-          color: function(context) {
-            return context.dataset.borderColor;
-          }
+          formatter: function(val) { return val > 0 ? val + "%" : ""; },
+          font: { size: 11, weight: "bold" },
+          color: function(context) { return context.dataset.borderColor; }
         }
       },
       scales: {
@@ -618,12 +622,7 @@ function renderChart() {
           beginAtZero: true,
           suggestedMax: 115,
           title: { display: true, text: "Persentase Kehadiran (%)", font: { size: 11 } },
-          ticks: {
-            stepSize: 20,
-            callback: function(val) {
-              return val <= 100 ? val + "%" : "";
-            }
-          }
+          ticks: { stepSize: 20, callback: function(val) { return val <= 100 ? val + "%" : ""; } }
         },
         x: {
           title: { display: true, text: "Tanggal Presensi", font: { size: 11 } }
@@ -792,8 +791,8 @@ function openFormJamaah(data = null) {
         </select>
       </div>
 
-      <div>
-        <label class="block text-xs font-semibold mb-1">Kelas</label>
+      <div id="form-kelas-wrapper">
+        <label class="block text-xs font-semibold mb-1">Kelas/Tingkat</label>
         <select name="Kelas" id="field-kelas" class="w-full border rounded px-3 py-1.5 text-sm"></select>
       </div>
 
@@ -828,17 +827,23 @@ function openModal(id) {
 function onKelompokChange(selectedKelas = null) {
   const kValEl = document.getElementById("field-kelompok");
   const kelasSelect = document.getElementById("field-kelas");
+  const kelasWrapper = document.getElementById("form-kelas-wrapper");
   if (!kValEl || !kelasSelect) return;
 
   const kVal = kValEl.value;
   kelasSelect.innerHTML = "";
 
-  let options = (kVal === "Caberawit") ? ["Kelas 1", "Kelas 2", "Kelas 3", "Kelas 4", "Kelas 5", "Kelas 6"] : ["1 KELAS"];
-
-  options.forEach(opt => {
-    const isSelected = (selectedKelas === opt) ? "selected" : "";
-    kelasSelect.innerHTML += `<option value="${opt}" ${isSelected}>${opt}</option>`;
-  });
+  if (kVal === "Caberawit") {
+    if (kelasWrapper) kelasWrapper.style.display = "block";
+    const options = ["PAUD", "Tilawati 1", "Tilawati 2", "Tilawati 3", "Tilawati 4", "Tilawati 5", "Al-Qur'an"];
+    options.forEach(opt => {
+      const isSelected = (selectedKelas === opt) ? "selected" : "";
+      kelasSelect.innerHTML += `<option value="${opt}" ${isSelected}>${opt}</option>`;
+    });
+  } else {
+    if (kelasWrapper) kelasWrapper.style.display = "none";
+    kelasSelect.innerHTML = `<option value="Umum" selected>Umum</option>`;
+  }
 }
 
 function editJamaah(id) {
