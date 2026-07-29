@@ -1,5 +1,5 @@
 // ==========================================
-// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH
+// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (HARIAN & KETERANGAN FIXED)
 // ==========================================
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby4HkEiK4yatFJvIn32c7I9dyYZ-Oy3NBIXr3zHJXGyOHMvoDGo0KzQO37MbDrghl2ARw/exec";
@@ -18,7 +18,6 @@ let currentKelas = "PAUD";
 let activeFormType = null;
 let rekapChartInstance = null;
 
-// Register ChartDataLabels jika plugin tersedia di window
 if (typeof ChartDataLabels !== 'undefined') {
   Chart.register(ChartDataLabels);
 }
@@ -135,7 +134,6 @@ function selectKelompok(kelompok) {
   const classnav = document.getElementById("classnav-container");
   const classBtnContainer = document.getElementById("class-buttons");
 
-  // HANYA CABERAWIT YANG MEMILIKI SUB-NAV KELAS
   if (kelompok === "Caberawit") {
     const classes = ["PAUD", "Tilawati 1", "Tilawati 2", "Tilawati 3", "Tilawati 4", "Tilawati 5", "Al-Qur'an"];
     if (classnav) classnav.classList.remove("hidden");
@@ -151,7 +149,6 @@ function selectKelompok(kelompok) {
     }
     selectKelas("PAUD");
   } else {
-    // PRA REMAJA, REMAJA, MUDA-MUDI, BAPAK, IBU TANPA KELAS TAMBAHAN
     if (classnav) classnav.classList.add("hidden");
     selectKelas("Umum");
   }
@@ -222,14 +219,7 @@ function renderJamaah() {
 
   tbody.innerHTML = appData.jamaah.map(j => {
     const kelompok = String(j.Kelompok || "Unassigned").trim();
-    let displayKelas = "-";
-
-    // Hanya Caberawit yang memiliki tingkat kelas/bacaan
-    if (kelompok === "Caberawit") {
-      displayKelas = j.Kelas || "PAUD";
-    } else {
-      displayKelas = "-";
-    }
+    let displayKelas = (kelompok === "Caberawit") ? (j.Kelas || "PAUD") : "-";
 
     return `
       <tr class="bg-white border-b hover:bg-slate-50">
@@ -250,6 +240,7 @@ function renderJamaah() {
   }).join("");
 }
 
+// RENDER TABEL PRESENSI DENGAN KET IZIIN DAN REKAPAN HARIAN
 function renderPresensiTable() {
   const filteredJamaah = appData.jamaah.filter(j => {
     const matchStatus = String(j.Status).trim().toLowerCase() === "aktif";
@@ -271,9 +262,9 @@ function renderPresensiTable() {
   if (filteredJamaah.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="4" class="px-4 py-6 text-center text-slate-400 italic">
+        <td colspan="5" class="px-4 py-6 text-center text-slate-400 italic">
           Belum ada jamaah yang terdaftar di kelompok <b>${displayTitle}</b>.<br>
-          <span class="text-xs text-slate-500">Buka menu <b>Data Jamaah</b> untuk menambahkan atau menyesuaikan kelas jamaah.</span>
+          <span class="text-xs text-slate-500">Buka menu <b>Data Jamaah</b> untuk menambahkan jamaah.</span>
         </td>
       </tr>
     `;
@@ -301,7 +292,10 @@ function renderPresensiTable() {
       const checkKelas = (currentKelompok === "Caberawit") ? (pKls === String(currentKelas).trim().toLowerCase()) : true;
 
       if (pKel === String(currentKelompok).trim().toLowerCase() && checkKelas && pDateStr === targetDate) {
-        existingStatusMap[String(p.NamaJamaah).trim().toLowerCase()] = String(p.StatusPresensi || "Hadir").trim();
+        existingStatusMap[String(p.NamaJamaah).trim().toLowerCase()] = {
+          status: String(p.StatusPresensi || "Hadir").trim(),
+          keterangan: String(p.Keterangan || "").trim()
+        };
       }
     });
 
@@ -310,7 +304,11 @@ function renderPresensiTable() {
 
     tbody.innerHTML = filteredJamaah.map((j, idx) => {
       const namaKey = String(j.Nama).trim().toLowerCase();
-      const savedStatus = existingStatusMap[namaKey] || "Hadir";
+      const exData = existingStatusMap[namaKey] || { status: "Hadir", keterangan: "" };
+      const savedStatus = exData.status;
+      const savedKet = exData.keterangan;
+
+      const isIzinChecked = (savedStatus === 'Izin');
 
       return `
         <tr class="bg-white border-b hover:bg-slate-50">
@@ -319,27 +317,52 @@ function renderPresensiTable() {
             ${existingStatusMap[namaKey] ? `<span class="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold border border-emerald-200">Tersimpan</span>` : ''}
           </td>
           <td class="px-3 py-3 text-center">
-            <input type="radio" name="presensi-${idx}" value="Hadir" ${savedStatus === 'Hadir' ? 'checked' : ''} ${disabledAttr} class="w-4 h-4 text-emerald-600 focus:ring-emerald-500">
+            <input type="radio" name="presensi-${idx}" value="Hadir" onchange="toggleKetInput(${idx})" ${savedStatus === 'Hadir' ? 'checked' : ''} ${disabledAttr} class="w-4 h-4 text-emerald-600 focus:ring-emerald-500">
           </td>
           <td class="px-3 py-3 text-center">
-            <input type="radio" name="presensi-${idx}" value="Izin" ${savedStatus === 'Izin' ? 'checked' : ''} ${disabledAttr} class="w-4 h-4 text-amber-500 focus:ring-amber-500">
+            <input type="radio" name="presensi-${idx}" value="Izin" onchange="toggleKetInput(${idx})" ${savedStatus === 'Izin' ? 'checked' : ''} ${disabledAttr} class="w-4 h-4 text-amber-500 focus:ring-amber-500">
           </td>
           <td class="px-3 py-3 text-center">
-            <input type="radio" name="presensi-${idx}" value="Alfa" ${savedStatus === 'Alfa' ? 'checked' : ''} ${disabledAttr} class="w-4 h-4 text-rose-600 focus:ring-rose-500">
+            <input type="radio" name="presensi-${idx}" value="Alfa" onchange="toggleKetInput(${idx})" ${savedStatus === 'Alfa' ? 'checked' : ''} ${disabledAttr} class="w-4 h-4 text-rose-600 focus:ring-rose-500">
+          </td>
+          <td class="px-3 py-3">
+            <input type="text" id="ket-${idx}" value="${savedKet}" placeholder="Alasan izin..." ${!isIzinChecked || isReadOnly ? 'disabled' : ''} class="w-full text-xs px-2 py-1 border rounded bg-slate-50 focus:bg-white focus:ring-1 focus:ring-amber-500 transition-all ${!isIzinChecked ? 'opacity-40' : ''}">
           </td>
         </tr>
       `;
     }).join("");
   }
 
-  updateRekapMingguan();
+  updateRekapHarian();
 }
 
-function updateRekapMingguan() {
-  const now = new Date();
-  const startOfWeek = new Date(now);
-  startOfWeek.setDate(now.getDate() - now.getDay());
-  startOfWeek.setHours(0, 0, 0, 0);
+// TOGGLE AKTIFKAN TEXTBOX KETERANGAN JIKA IZIN DIPILIH
+function toggleKetInput(idx) {
+  const radios = document.getElementsByName(`presensi-${idx}`);
+  const ketInput = document.getElementById(`ket-${idx}`);
+  if (!ketInput) return;
+
+  let selected = "Hadir";
+  for (let r of radios) {
+    if (r.checked) selected = r.value;
+  }
+
+  if (selected === "Izin") {
+    ketInput.disabled = false;
+    ketInput.classList.remove("opacity-40");
+    ketInput.focus();
+  } else {
+    ketInput.value = "";
+    ketInput.disabled = true;
+    ketInput.classList.add("opacity-40");
+  }
+}
+
+// REKAPAN PRESENSI KHUSUS HARIAN (TANGGAL TERPILIH)
+function updateRekapHarian() {
+  const selectedDateInput = document.getElementById("presensi-date");
+  if (!selectedDateInput) return;
+  const targetDate = selectedDateInput.value;
 
   let h = 0, i = 0, a = 0;
   let latestPresensiMap = {};
@@ -352,25 +375,21 @@ function updateRekapMingguan() {
     const pKls = String(p.Kelas || "Umum").trim().toLowerCase();
     const pKlsTarget = String(currentKelas).trim().toLowerCase();
 
+    let pDateStr = "";
+    if (p.Tanggal instanceof Date) {
+      const y = p.Tanggal.getUTCFullYear();
+      const m = String(p.Tanggal.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(p.Tanggal.getUTCDate()).padStart(2, '0');
+      pDateStr = `${y}-${m}-${d}`;
+    } else {
+      pDateStr = String(p.Tanggal).split("T")[0].trim();
+    }
+
     const checkKelas = (currentKelompok === "Caberawit") ? (pKls === pKlsTarget) : true;
 
-    if (pKel === pKelTarget && checkKelas) {
-      let pDateStr = "";
-      if (p.Tanggal instanceof Date) {
-        const y = p.Tanggal.getUTCFullYear();
-        const m = String(p.Tanggal.getUTCMonth() + 1).padStart(2, '0');
-        const d = String(p.Tanggal.getUTCDate()).padStart(2, '0');
-        pDateStr = `${y}-${m}-${d}`;
-      } else {
-        pDateStr = String(p.Tanggal).split("T")[0].trim();
-      }
-
-      let pDate = new Date(pDateStr + "T00:00:00");
-
-      if (pDate >= startOfWeek) {
-        const uniqueKey = `${String(p.NamaJamaah).trim().toLowerCase()}_${pDateStr}`;
-        latestPresensiMap[uniqueKey] = String(p.StatusPresensi || "Hadir").trim();
-      }
+    if (pKel === pKelTarget && checkKelas && pDateStr === targetDate) {
+      const uniqueKey = String(p.NamaJamaah).trim().toLowerCase();
+      latestPresensiMap[uniqueKey] = String(p.StatusPresensi || "Hadir").trim();
     }
   });
 
@@ -386,7 +405,7 @@ function updateRekapMingguan() {
   
   if (document.getElementById("rekap-mingguan-title")) {
     const displayTitle = (currentKelompok === "Caberawit") ? `${currentKelompok} (${currentKelas})` : currentKelompok;
-    document.getElementById("rekap-mingguan-title").innerHTML = `<i class="fa-solid fa-calendar-week mr-2"></i> Rekapan Presensi Minggu Ini: ${displayTitle}`;
+    document.getElementById("rekap-mingguan-title").innerHTML = `<i class="fa-solid fa-calendar-day mr-2"></i> Rekapan Presensi Hari Ini (${targetDate}): ${displayTitle}`;
   }
 }
 
@@ -418,17 +437,21 @@ async function submitPresensi() {
   const records = [];
   filteredJamaah.forEach((j, idx) => {
     const radios = document.getElementsByName(`presensi-${idx}`);
+    const ketInput = document.getElementById(`ket-${idx}`);
+
     let selectedStatus = "Hadir";
     for (let r of radios) {
       if (r.checked) selectedStatus = r.value;
     }
+
     records.push({
       kelompok: currentKelompok,
       kelas: (currentKelompok === "Caberawit") ? currentKelas : "Umum",
       tanggal: date,
       hari: day,
       nama: j.Nama,
-      status: selectedStatus
+      status: selectedStatus,
+      keterangan: ketInput ? ketInput.value : ""
     });
   });
 
@@ -854,7 +877,6 @@ function onKelompokChange(selectedKelas = null) {
   const kVal = kValEl.value;
   kelasSelect.innerHTML = "";
 
-  // HANYA CABERAWIT YANG MENGGUNAKAN DROPDOWN KELAS/BACAAN
   if (kVal === "Caberawit") {
     if (kelasWrapper) kelasWrapper.style.display = "block";
     const options = ["PAUD", "Tilawati 1", "Tilawati 2", "Tilawati 3", "Tilawati 4", "Tilawati 5", "Al-Qur'an"];
@@ -863,7 +885,6 @@ function onKelompokChange(selectedKelas = null) {
       kelasSelect.innerHTML += `<option value="${opt}" ${isSelected}>${opt}</option>`;
     });
   } else {
-    // PRA REMAJA, REMAJA, MUDA-MUDI, BAPAK-BAPAK, IBU-IBU DIBUAT SATU KELAS (UMUM)
     if (kelasWrapper) kelasWrapper.style.display = "none";
     kelasSelect.innerHTML = `<option value="Umum" selected>Umum</option>`;
   }
@@ -941,9 +962,6 @@ function hideMessage() {
   if (el) el.classList.add("hidden");
 }
 
-// ==========================================
-// TOGGLE MENU HAMBURGER UNTUK LAYAR MOBILE
-// ==========================================
 function toggleMobileMenu() {
   const menuContainer = document.getElementById("nav-menu-container");
   const icon = document.getElementById("hamburger-icon");
