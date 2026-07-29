@@ -49,6 +49,7 @@ function updateDayLabel() {
   const dayEl = document.getElementById("presensi-day");
   if (dayEl) dayEl.value = days[d.getDay()];
   
+  // Render ulang tabel presensi sesuai tanggal yang dipilih
   renderPresensiTable();
 }
 
@@ -105,6 +106,7 @@ function switchTab(tabName) {
     onChartFilterChange();
   }
 
+  // Tutup menu seluler/hamburger secara otomatis setelah diklik
   const menuContainer = document.getElementById("nav-menu-container");
   const icon = document.getElementById("hamburger-icon");
   if (window.innerWidth < 768 && menuContainer && menuContainer.classList.contains("show-mobile-menu")) {
@@ -136,7 +138,7 @@ function selectKelompok(kelompok) {
   const classBtnContainer = document.getElementById("class-buttons");
 
   if (kelompok === "Caberawit") {
-    // Tampilkan sub-nav kelas untuk Caberawit
+    // Tampilkan sub-nav kelas khusus Caberawit
     if (classnav) classnav.classList.remove("hidden");
     if (classBtnContainer) {
       classBtnContainer.innerHTML = "";
@@ -152,7 +154,7 @@ function selectKelompok(kelompok) {
     }
     selectKelas("PAUD");
   } else {
-    // Sembunyikan sub-nav kelas untuk kelompok usia lain (langsung tanpa embel-embel kelas)
+    // Sembunyikan sub-nav kelas untuk kelompok usia lainnya
     if (classnav) classnav.classList.add("hidden");
     selectKelas("Umum");
   }
@@ -464,7 +466,6 @@ function onChartFilterChange() {
       kelasSelect.innerHTML += `<option value="${opt}">${opt}</option>`;
     });
   } else {
-    // Sembunyikan dropdown kelas jika kelompok bukan Caberawit
     kelasSelect.style.display = "none";
     kelasSelect.innerHTML = `<option value="Umum">Umum</option>`;
   }
