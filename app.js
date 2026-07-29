@@ -2,7 +2,7 @@
 // FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (FIXED BLANK SCREEN)
 // ==========================================
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxa4X_vxhNQCMVxKM3XWEinjnZnvYZ8BkwNAXMEBpyxlCbUGedfvi0d5ItbW87UHqN_Nw/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbykwykXc-BsBAo7k-tpbxLJBExbFXnODdhR6Ofz2SptM-lggZPlUfXY_Bf-yLK2FjgBzg/exec";
 
 let appData = {
   pengurus: [],
@@ -814,8 +814,14 @@ function openFormJamaah(data = null) {
   if (fieldsEl) {
     fieldsEl.innerHTML = `
       <input type="hidden" name="ID" value="${data ? data.ID : ''}">
-      <div><label class="block text-xs font-semibold mb-1">Nama Lengkap</label><input type="text" name="Nama" value="${data ? (data.Nama || '') : ''}" required class="w-full border rounded px-3 py-1.5 text-sm"></div>
-      <div><label class="block text-xs font-semibold mb-1">Tanggal Lahir</label><input type="date" name="TanggalLahir" value="${formattedDob}" required class="w-full border rounded px-3 py-1.5 text-sm"></div>
+      <div>
+        <label class="block text-xs font-semibold mb-1">Nama Lengkap</label>
+        <input type="text" name="Nama" value="${data ? (data.Nama || '') : ''}" required class="w-full border rounded px-3 py-1.5 text-sm">
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1">Tanggal Lahir</label>
+        <input type="date" name="TanggalLahir" value="${formattedDob}" required class="w-full border rounded px-3 py-1.5 text-sm">
+      </div>
       
       <div>
         <label class="block text-xs font-semibold mb-1">Kelompok Usia</label>
@@ -842,7 +848,11 @@ function openFormJamaah(data = null) {
         </select>
       </div>
       
-      <div><label class="block text-xs font-semibold mb-1">Alamat</label><textarea name="Alamat" class="w-full border rounded px-3 py-1.5 text-sm">${data ? (data.Alamat || '') : ''}</textarea></div>
+      <div>
+        <label class="block text-xs font-semibold mb-1">Alamat</label>
+        <textarea name="Alamat" class="w-full border rounded px-3 py-1.5 text-sm">${data ? (data.Alamat || '') : ''}</textarea>
+      </div>
+
       <div>
         <label class="block text-xs font-semibold mb-1">Status</label>
         <select name="Status" class="w-full border rounded px-3 py-1.5 text-sm">
@@ -852,6 +862,10 @@ function openFormJamaah(data = null) {
       </div>
     `;
   }
+
+  onKelompokChange(data ? data.Kelas : null);
+  openModal("modal-form");
+}
 
   onKelompokChange(data ? data.Kelas : null);
   openModal("modal-form");
