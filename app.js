@@ -49,7 +49,6 @@ function updateDayLabel() {
   const dayEl = document.getElementById("presensi-day");
   if (dayEl) dayEl.value = days[d.getDay()];
   
-  // Render ulang tabel presensi sesuai tanggal yang dipilih
   renderPresensiTable();
 }
 
@@ -106,7 +105,6 @@ function switchTab(tabName) {
     onChartFilterChange();
   }
 
-  // Tutup menu seluler/hamburger secara otomatis setelah diklik
   const menuContainer = document.getElementById("nav-menu-container");
   const icon = document.getElementById("hamburger-icon");
   if (window.innerWidth < 768 && menuContainer && menuContainer.classList.contains("show-mobile-menu")) {
@@ -137,13 +135,19 @@ function selectKelompok(kelompok) {
   const classnav = document.getElementById("classnav-container");
   const classBtnContainer = document.getElementById("class-buttons");
 
+  let classes = [];
   if (kelompok === "Caberawit") {
-    // Tampilkan sub-nav kelas khusus Caberawit
+    classes = ["PAUD", "Tilawati 1", "Tilawati 2", "Tilawati 3", "Tilawati 4", "Tilawati 5", "Al-Qur'an"];
+  } else if (kelompok === "Pra Remaja") {
+    classes = ["Kelas 7", "Kelas 8", "Kelas 9"];
+  } else if (kelompok === "Remaja") {
+    classes = ["Kelas 10", "Kelas 11", "Kelas 12"];
+  }
+
+  if (classes.length > 0) {
     if (classnav) classnav.classList.remove("hidden");
     if (classBtnContainer) {
       classBtnContainer.innerHTML = "";
-      const classes = ["PAUD", "Tilawati 1", "Tilawati 2", "Tilawati 3", "Tilawati 4", "Tilawati 5", "Al-Qur'an"];
-
       classes.forEach((cls, idx) => {
         const btn = document.createElement("button");
         btn.className = `classnav-btn px-3 py-1 rounded-md bg-white border border-slate-300 hover:bg-teal-50 text-xs shrink-0 ${idx === 0 ? 'active' : ''}`;
@@ -152,9 +156,8 @@ function selectKelompok(kelompok) {
         classBtnContainer.appendChild(btn);
       });
     }
-    selectKelas("PAUD");
+    selectKelas(classes[0]);
   } else {
-    // Sembunyikan sub-nav kelas untuk kelompok usia lainnya
     if (classnav) classnav.classList.add("hidden");
     selectKelas("Umum");
   }
@@ -168,8 +171,8 @@ function selectKelas(kelas, btnEl) {
   }
   const titleEl = document.getElementById("presensi-class-title");
   if (titleEl) {
-    if (currentKelompok === "Caberawit") {
-      titleEl.innerText = `Presensi: Caberawit (${currentKelas})`;
+    if (["Caberawit", "Pra Remaja", "Remaja"].includes(currentKelompok)) {
+      titleEl.innerText = `Presensi: ${currentKelompok} (${currentKelas})`;
     } else {
       titleEl.innerText = `Presensi: ${currentKelompok}`;
     }
@@ -222,22 +225,38 @@ function renderInventaris() {
 function renderJamaah() {
   const tbody = document.getElementById("table-jamaah-body");
   if (!tbody) return;
-  tbody.innerHTML = appData.jamaah.map(j => `
-    <tr class="bg-white border-b hover:bg-slate-50">
-      <td class="px-3 sm:px-4 py-3 text-xs font-mono text-slate-500">${j.ID}</td>
-      <td class="px-3 sm:px-4 py-3 font-semibold text-slate-800">${j.Nama}</td>
-      <td class="px-3 sm:px-4 py-3 whitespace-nowrap">${j.TanggalLahir ? j.TanggalLahir.toString().split("T")[0] : '-'} <span class="text-xs text-emerald-600 font-bold">(${calculateAge(j.TanggalLahir)})</span></td>
-      <td class="px-3 sm:px-4 py-3"><span class="px-2 py-1 rounded bg-teal-50 text-teal-700 font-semibold text-xs">${j.Kelompok || 'Unassigned'}</span></td>
-      <td class="px-3 sm:px-4 py-3"><span class="px-2 py-1 rounded bg-slate-100 text-slate-700 font-semibold text-xs">${(j.Kelompok === 'Caberawit') ? (j.Kelas || 'PAUD') : '-'}</span></td>
-      <td class="px-3 sm:px-4 py-3">${j.Gender || '-'}</td>
-      <td class="px-3 sm:px-4 py-3">${j.Alamat || '-'}</td>
-      <td class="px-3 sm:px-4 py-3"><span class="px-2 py-1 rounded-full text-xs font-semibold ${j.Status === 'Aktif' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}">${j.Status}</span></td>
-      <td class="px-3 sm:px-4 py-3 text-center admin-only space-x-2 ${currentAdmin ? '' : 'hidden'}">
-        <button onclick="editJamaah('${j.ID}')" class="text-amber-600 hover:text-amber-800 font-semibold p-1"><i class="fa-solid fa-pen-to-square"></i></button>
-        <button onclick="deleteRow('Jamaah', '${j.ID}')" class="text-rose-600 hover:text-rose-800 p-1"><i class="fa-solid fa-trash"></i></button>
-      </td>
-    </tr>
-  `).join("");
+
+  tbody.innerHTML = appData.jamaah.map(j => {
+    const kelompok = String(j.Kelompok || "Unassigned").trim();
+    let displayKelas = "-";
+
+    if (kelompok === "Caberawit") {
+      displayKelas = j.Kelas || "PAUD";
+    } else if (kelompok === "Pra Remaja") {
+      displayKelas = j.Kelas || "Kelas 7";
+    } else if (kelompok === "Remaja") {
+      displayKelas = j.Kelas || "Kelas 10";
+    } else {
+      displayKelas = "-";
+    }
+
+    return `
+      <tr class="bg-white border-b hover:bg-slate-50">
+        <td class="px-3 sm:px-4 py-3 text-xs font-mono text-slate-500">${j.ID}</td>
+        <td class="px-3 sm:px-4 py-3 font-semibold text-slate-800">${j.Nama}</td>
+        <td class="px-3 sm:px-4 py-3 whitespace-nowrap">${j.TanggalLahir ? j.TanggalLahir.toString().split("T")[0] : '-'} <span class="text-xs text-emerald-600 font-bold">(${calculateAge(j.TanggalLahir)})</span></td>
+        <td class="px-3 sm:px-4 py-3"><span class="px-2 py-1 rounded bg-teal-50 text-teal-700 font-semibold text-xs">${kelompok}</span></td>
+        <td class="px-3 sm:px-4 py-3"><span class="px-2 py-1 rounded bg-slate-100 text-slate-700 font-semibold text-xs">${displayKelas}</span></td>
+        <td class="px-3 sm:px-4 py-3">${j.Gender || '-'}</td>
+        <td class="px-3 sm:px-4 py-3">${j.Alamat || '-'}</td>
+        <td class="px-3 sm:px-4 py-3"><span class="px-2 py-1 rounded-full text-xs font-semibold ${j.Status === 'Aktif' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}">${j.Status}</span></td>
+        <td class="px-3 sm:px-4 py-3 text-center admin-only space-x-2 ${currentAdmin ? '' : 'hidden'}">
+          <button onclick="editJamaah('${j.ID}')" class="text-amber-600 hover:text-amber-800 font-semibold p-1"><i class="fa-solid fa-pen-to-square"></i></button>
+          <button onclick="deleteRow('Jamaah', '${j.ID}')" class="text-rose-600 hover:text-rose-800 p-1"><i class="fa-solid fa-trash"></i></button>
+        </td>
+      </tr>
+    `;
+  }).join("");
 }
 
 function renderPresensiTable() {
@@ -246,8 +265,8 @@ function renderPresensiTable() {
     const matchKelompok = String(j.Kelompok || "Caberawit").trim().toLowerCase() === String(currentKelompok).trim().toLowerCase();
     
     let matchKelas = true;
-    if (currentKelompok === "Caberawit") {
-      matchKelas = String(j.Kelas || "PAUD").trim().toLowerCase() === String(currentKelas).trim().toLowerCase();
+    if (["Caberawit", "Pra Remaja", "Remaja"].includes(currentKelompok)) {
+      matchKelas = String(j.Kelas || "").trim().toLowerCase() === String(currentKelas).trim().toLowerCase();
     }
     
     return matchStatus && matchKelompok && matchKelas;
@@ -256,7 +275,7 @@ function renderPresensiTable() {
   const tbody = document.getElementById("table-presensi-body");
   if (!tbody) return;
 
-  const displayTitle = (currentKelompok === "Caberawit") ? `${currentKelompok} (${currentKelas})` : currentKelompok;
+  const displayTitle = (["Caberawit", "Pra Remaja", "Remaja"].includes(currentKelompok)) ? `${currentKelompok} (${currentKelas})` : currentKelompok;
 
   if (filteredJamaah.length === 0) {
     tbody.innerHTML = `
@@ -288,7 +307,7 @@ function renderPresensiTable() {
         pDateStr = String(p.Tanggal).split("T")[0].trim();
       }
 
-      const checkKelas = (currentKelompok === "Caberawit") ? (pKls === String(currentKelas).trim().toLowerCase()) : true;
+      const checkKelas = (["Caberawit", "Pra Remaja", "Remaja"].includes(currentKelompok)) ? (pKls === String(currentKelas).trim().toLowerCase()) : true;
 
       if (pKel === String(currentKelompok).trim().toLowerCase() && checkKelas && pDateStr === targetDate) {
         existingStatusMap[String(p.NamaJamaah).trim().toLowerCase()] = String(p.StatusPresensi || "Hadir").trim();
@@ -342,7 +361,7 @@ function updateRekapMingguan() {
     const pKls = String(p.Kelas || "Umum").trim().toLowerCase();
     const pKlsTarget = String(currentKelas).trim().toLowerCase();
 
-    const checkKelas = (currentKelompok === "Caberawit") ? (pKls === pKlsTarget) : true;
+    const checkKelas = (["Caberawit", "Pra Remaja", "Remaja"].includes(currentKelompok)) ? (pKls === pKlsTarget) : true;
 
     if (pKel === pKelTarget && checkKelas) {
       let pDateStr = "";
@@ -375,7 +394,7 @@ function updateRekapMingguan() {
   if (document.getElementById("stat-alfa")) document.getElementById("stat-alfa").innerText = a;
   
   if (document.getElementById("rekap-mingguan-title")) {
-    const displayTitle = (currentKelompok === "Caberawit") ? `${currentKelompok} (${currentKelas})` : currentKelompok;
+    const displayTitle = (["Caberawit", "Pra Remaja", "Remaja"].includes(currentKelompok)) ? `${currentKelompok} (${currentKelas})` : currentKelompok;
     document.getElementById("rekap-mingguan-title").innerHTML = `<i class="fa-solid fa-calendar-week mr-2"></i> Rekapan Presensi Minggu Ini: ${displayTitle}`;
   }
 }
@@ -395,8 +414,8 @@ async function submitPresensi() {
     const matchKelompok = String(j.Kelompok || "Caberawit").trim().toLowerCase() === String(currentKelompok).trim().toLowerCase();
     
     let matchKelas = true;
-    if (currentKelompok === "Caberawit") {
-      matchKelas = String(j.Kelas || "PAUD").trim().toLowerCase() === String(currentKelas).trim().toLowerCase();
+    if (["Caberawit", "Pra Remaja", "Remaja"].includes(currentKelompok)) {
+      matchKelas = String(j.Kelas || "").trim().toLowerCase() === String(currentKelas).trim().toLowerCase();
     }
     return matchStatus && matchKelompok && matchKelas;
   });
@@ -414,7 +433,7 @@ async function submitPresensi() {
     }
     records.push({
       kelompok: currentKelompok,
-      kelas: (currentKelompok === "Caberawit") ? currentKelas : "Umum",
+      kelas: (["Caberawit", "Pra Remaja", "Remaja"].includes(currentKelompok)) ? currentKelas : "Umum",
       tanggal: date,
       hari: day,
       nama: j.Nama,
@@ -459,9 +478,17 @@ function onChartFilterChange() {
   const kVal = kelompokSelect.value;
   kelasSelect.innerHTML = "";
 
+  let options = [];
   if (kVal === "Caberawit") {
+    options = ["PAUD", "Tilawati 1", "Tilawati 2", "Tilawati 3", "Tilawati 4", "Tilawati 5", "Al-Qur'an"];
+  } else if (kVal === "Pra Remaja") {
+    options = ["Kelas 7", "Kelas 8", "Kelas 9"];
+  } else if (kVal === "Remaja") {
+    options = ["Kelas 10", "Kelas 11", "Kelas 12"];
+  }
+
+  if (options.length > 0) {
     kelasSelect.style.display = "inline-block";
-    const options = ["PAUD", "Tilawati 1", "Tilawati 2", "Tilawati 3", "Tilawati 4", "Tilawati 5", "Al-Qur'an"];
     options.forEach(opt => {
       kelasSelect.innerHTML += `<option value="${opt}">${opt}</option>`;
     });
@@ -490,7 +517,7 @@ function renderChart() {
     const pKel = String(p.Kelompok || "Caberawit").trim().toLowerCase();
     const pKls = String(p.Kelas || "Umum").trim().toLowerCase();
     
-    const checkKelas = (selectedKelompok === "Caberawit") ? (pKls === String(selectedKelas).trim().toLowerCase()) : true;
+    const checkKelas = (["Caberawit", "Pra Remaja", "Remaja"].includes(selectedKelompok)) ? (pKls === String(selectedKelas).trim().toLowerCase()) : true;
 
     if (pKel !== String(selectedKelompok).trim().toLowerCase() || !checkKelas) {
       return;
@@ -834,9 +861,17 @@ function onKelompokChange(selectedKelas = null) {
   const kVal = kValEl.value;
   kelasSelect.innerHTML = "";
 
+  let options = [];
   if (kVal === "Caberawit") {
+    options = ["PAUD", "Tilawati 1", "Tilawati 2", "Tilawati 3", "Tilawati 4", "Tilawati 5", "Al-Qur'an"];
+  } else if (kVal === "Pra Remaja") {
+    options = ["Kelas 7", "Kelas 8", "Kelas 9"];
+  } else if (kVal === "Remaja") {
+    options = ["Kelas 10", "Kelas 11", "Kelas 12"];
+  }
+
+  if (options.length > 0) {
     if (kelasWrapper) kelasWrapper.style.display = "block";
-    const options = ["PAUD", "Tilawati 1", "Tilawati 2", "Tilawati 3", "Tilawati 4", "Tilawati 5", "Al-Qur'an"];
     options.forEach(opt => {
       const isSelected = (selectedKelas === opt) ? "selected" : "";
       kelasSelect.innerHTML += `<option value="${opt}" ${isSelected}>${opt}</option>`;
