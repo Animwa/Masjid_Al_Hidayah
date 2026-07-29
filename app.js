@@ -1,5 +1,5 @@
 // ==========================================
-// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (HARIAN & KETERANGAN FIXED)
+// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (FIXED BLANK SCREEN)
 // ==========================================
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzqcIf6KQ9B_RGNweWA9mskoOnptMgF27WoobwtSiOHaJczccSt5sQ31xKBJHgndy7fTA/exec";
@@ -61,10 +61,10 @@ async function loadAllData() {
       renderAllViews();
       hideMessage();
     } else {
-      showMessage("Gagal memuat data: " + json.error, "error");
+      showMessage("Gagal memuat data: " + (json.error || json.message), "error");
     }
   } catch (err) {
-    showMessage("Gagal terhubung ke Google Apps Script URL. Pastikan SCRIPT_URL sudah terpasang.", "error");
+    showMessage("Gagal terhubung ke Google Apps Script URL.", "error");
   }
 }
 
@@ -183,7 +183,7 @@ function calculateAge(dobString) {
 function renderPengurus() {
   const tbody = document.getElementById("table-pengurus-body");
   if (!tbody) return;
-  tbody.innerHTML = appData.pengurus.map(p => `
+  tbody.innerHTML = (appData.pengurus || []).map(p => `
     <tr class="bg-white border-b hover:bg-slate-50">
       <td class="px-4 sm:px-6 py-3.5 font-semibold text-slate-800">${p.Nama}</td>
       <td class="px-4 sm:px-6 py-3.5">${p.Jabatan}</td>
@@ -199,7 +199,7 @@ function renderPengurus() {
 function renderInventaris() {
   const tbody = document.getElementById("table-inventaris-body");
   if (!tbody) return;
-  tbody.innerHTML = appData.inventaris.map(i => `
+  tbody.innerHTML = (appData.inventaris || []).map(i => `
     <tr class="bg-white border-b hover:bg-slate-50">
       <td class="px-4 sm:px-6 py-3.5 font-semibold text-slate-800">${i.NamaBarang}</td>
       <td class="px-4 sm:px-6 py-3.5">${i.Jumlah}</td>
@@ -217,7 +217,7 @@ function renderJamaah() {
   const tbody = document.getElementById("table-jamaah-body");
   if (!tbody) return;
 
-  tbody.innerHTML = appData.jamaah.map(j => {
+  tbody.innerHTML = (appData.jamaah || []).map(j => {
     const kelompok = String(j.Kelompok || "Unassigned").trim();
     let displayKelas = (kelompok === "Caberawit") ? (j.Kelas || "PAUD") : "-";
 
@@ -240,9 +240,8 @@ function renderJamaah() {
   }).join("");
 }
 
-// RENDER TABEL PRESENSI DENGAN KET IZIIN DAN REKAPAN HARIAN
 function renderPresensiTable() {
-  const filteredJamaah = appData.jamaah.filter(j => {
+  const filteredJamaah = (appData.jamaah || []).filter(j => {
     const matchStatus = String(j.Status).trim().toLowerCase() === "aktif";
     const matchKelompok = String(j.Kelompok || "Caberawit").trim().toLowerCase() === String(currentKelompok).trim().toLowerCase();
     
@@ -273,7 +272,7 @@ function renderPresensiTable() {
     const targetDate = selectedDateInput ? selectedDateInput.value : "";
 
     let existingStatusMap = {};
-    appData.presensi.forEach(p => {
+    (appData.presensi || []).forEach(p => {
       if (!p.Tanggal || !p.NamaJamaah) return;
 
       const pKel = String(p.Kelompok || "").trim().toLowerCase();
@@ -300,19 +299,15 @@ function renderPresensiTable() {
     });
 
     const isReadOnly = !currentAdmin;
-    const disabledAttr = isReadOnly ? "disabled cursor-not-allowed opacity-80" : "cursor-pointer";
+    const disabledRadio = isReadOnly ? "disabled cursor-not-allowed opacity-80" : "cursor-pointer";
 
-tbody.innerHTML = filteredJamaah.map((j, idx) => {
+    tbody.innerHTML = filteredJamaah.map((j, idx) => {
       const namaKey = String(j.Nama).trim().toLowerCase();
       const exData = existingStatusMap[namaKey] || { status: "Hadir", keterangan: "" };
       const savedStatus = exData.status;
       const savedKet = exData.keterangan;
 
       const isIzinChecked = (savedStatus === 'Izin');
-      const isReadOnly = !currentAdmin;
-      
-      // Radio button dan input teks dikunci HANYA jika bukan Admin
-      const disabledRadio = isReadOnly ? "disabled cursor-not-allowed opacity-80" : "cursor-pointer";
       const disabledKet = (isReadOnly || !isIzinChecked) ? "disabled" : "";
 
       return `
@@ -336,10 +331,11 @@ tbody.innerHTML = filteredJamaah.map((j, idx) => {
         </tr>
       `;
     }).join("");
+  }
+
   updateRekapHarian();
 }
 
-// TOGGLE AKTIFKAN TEXTBOX KETERANGAN JIKA IZIN DIPILIH
 function toggleKetInput(idx) {
   const radios = document.getElementsByName(`presensi-${idx}`);
   const ketInput = document.getElementById(`ket-${idx}`);
@@ -361,7 +357,6 @@ function toggleKetInput(idx) {
   }
 }
 
-// REKAPAN PRESENSI KHUSUS HARIAN (TANGGAL TERPILIH)
 function updateRekapHarian() {
   const selectedDateInput = document.getElementById("presensi-date");
   if (!selectedDateInput) return;
@@ -370,7 +365,7 @@ function updateRekapHarian() {
   let h = 0, i = 0, a = 0;
   let latestPresensiMap = {};
 
-  appData.presensi.forEach(p => {
+  (appData.presensi || []).forEach(p => {
     if (!p.Tanggal || !p.NamaJamaah) return;
 
     const pKel = String(p.Kelompok || "").trim().toLowerCase();
@@ -422,7 +417,7 @@ async function submitPresensi() {
   const date = dateInput.value;
   const day = dayInput.value;
 
-  const filteredJamaah = appData.jamaah.filter(j => {
+  const filteredJamaah = (appData.jamaah || []).filter(j => {
     const matchStatus = String(j.Status).trim().toLowerCase() === "aktif";
     const matchKelompok = String(j.Kelompok || "Caberawit").trim().toLowerCase() === String(currentKelompok).trim().toLowerCase();
     
@@ -482,10 +477,6 @@ async function submitPresensi() {
   }
 }
 
-// ==========================================
-// RENDER GRAFIK DIAGRAM GARIS (LINE CHART)
-// ==========================================
-
 function onChartFilterChange() {
   const kelompokSelect = document.getElementById("chart-kelompok-select");
   const kelasSelect = document.getElementById("chart-kelas-select");
@@ -520,7 +511,7 @@ function renderChart() {
 
   let dailyDataMap = {};
 
-  appData.presensi.forEach(p => {
+  (appData.presensi || []).forEach(p => {
     if (!p.Tanggal) return;
 
     const pKel = String(p.Kelompok || "Caberawit").trim().toLowerCase();
