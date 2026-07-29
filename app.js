@@ -1,5 +1,5 @@
 // ==========================================
-// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (FIXED BLANK SCREEN)
+// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (CRASH & BLANK SAFE)
 // ==========================================
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzPCfnbwqFCNCeerNy2cCgapsrXkVWL0jnnK_bHS4RUsGS1Wx6DB-XPGHn-Fr_-gGsXcA/exec";
@@ -57,14 +57,20 @@ async function loadAllData() {
     const res = await fetch(`${SCRIPT_URL}?action=get_all_data`);
     const json = await res.json();
     if (json.success) {
-      appData = json;
+      appData = {
+        pengurus: Array.isArray(json.pengurus) ? json.pengurus : [],
+        inventaris: Array.isArray(json.inventaris) ? json.inventaris : [],
+        jamaah: Array.isArray(json.jamaah) ? json.jamaah : [],
+        presensi: Array.isArray(json.presensi) ? json.presensi : [],
+        admins: Array.isArray(json.admins) ? json.admins : []
+      };
       renderAllViews();
       hideMessage();
     } else {
       showMessage("Gagal memuat data: " + (json.error || json.message), "error");
     }
   } catch (err) {
-    showMessage("Gagal terhubung ke Google Apps Script URL.", "error");
+    showMessage("Gagal terhubung ke Google Apps Script.", "error");
   }
 }
 
@@ -183,12 +189,13 @@ function calculateAge(dobString) {
 function renderPengurus() {
   const tbody = document.getElementById("table-pengurus-body");
   if (!tbody) return;
-  tbody.innerHTML = (appData.pengurus || []).map(p => `
+  const data = Array.isArray(appData.pengurus) ? appData.pengurus : [];
+  tbody.innerHTML = data.map(p => `
     <tr class="bg-white border-b hover:bg-slate-50">
-      <td class="px-4 sm:px-6 py-3.5 font-semibold text-slate-800">${p.Nama}</td>
-      <td class="px-4 sm:px-6 py-3.5">${p.Jabatan}</td>
+      <td class="px-4 sm:px-6 py-3.5 font-semibold text-slate-800">${p.Nama || '-'}</td>
+      <td class="px-4 sm:px-6 py-3.5">${p.Jabatan || '-'}</td>
       <td class="px-4 sm:px-6 py-3.5">${p.NoHP || '-'}</td>
-      <td class="px-4 sm:px-6 py-3.5"><span class="px-2 py-1 rounded-full text-xs font-semibold ${p.Status === 'Aktif' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}">${p.Status}</span></td>
+      <td class="px-4 sm:px-6 py-3.5"><span class="px-2 py-1 rounded-full text-xs font-semibold ${p.Status === 'Aktif' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}">${p.Status || 'Aktif'}</span></td>
       <td class="px-4 sm:px-6 py-3.5 text-center admin-only ${currentAdmin ? '' : 'hidden'}">
         <button onclick="deleteRow('Pengurus', '${p.ID}')" class="text-rose-600 hover:text-rose-800 p-1"><i class="fa-solid fa-trash"></i></button>
       </td>
@@ -199,11 +206,12 @@ function renderPengurus() {
 function renderInventaris() {
   const tbody = document.getElementById("table-inventaris-body");
   if (!tbody) return;
-  tbody.innerHTML = (appData.inventaris || []).map(i => `
+  const data = Array.isArray(appData.inventaris) ? appData.inventaris : [];
+  tbody.innerHTML = data.map(i => `
     <tr class="bg-white border-b hover:bg-slate-50">
-      <td class="px-4 sm:px-6 py-3.5 font-semibold text-slate-800">${i.NamaBarang}</td>
-      <td class="px-4 sm:px-6 py-3.5">${i.Jumlah}</td>
-      <td class="px-4 sm:px-6 py-3.5"><span class="px-2 py-1 rounded-full text-xs font-semibold ${i.Kondisi === 'Baik' ? 'bg-teal-100 text-teal-800' : 'bg-rose-100 text-rose-800'}">${i.Kondisi}</span></td>
+      <td class="px-4 sm:px-6 py-3.5 font-semibold text-slate-800">${i.NamaBarang || '-'}</td>
+      <td class="px-4 sm:px-6 py-3.5">${i.Jumlah || 0}</td>
+      <td class="px-4 sm:px-6 py-3.5"><span class="px-2 py-1 rounded-full text-xs font-semibold ${i.Kondisi === 'Baik' ? 'bg-teal-100 text-teal-800' : 'bg-rose-100 text-rose-800'}">${i.Kondisi || 'Baik'}</span></td>
       <td class="px-4 sm:px-6 py-3.5">${i.TanggalMasuk ? i.TanggalMasuk.toString().split("T")[0] : '-'}</td>
       <td class="px-4 sm:px-6 py-3.5">${i.Keterangan || '-'}</td>
       <td class="px-4 sm:px-6 py-3.5 text-center admin-only ${currentAdmin ? '' : 'hidden'}">
@@ -217,20 +225,22 @@ function renderJamaah() {
   const tbody = document.getElementById("table-jamaah-body");
   if (!tbody) return;
 
-  tbody.innerHTML = (appData.jamaah || []).map(j => {
+  const data = Array.isArray(appData.jamaah) ? appData.jamaah : [];
+
+  tbody.innerHTML = data.map(j => {
     const kelompok = String(j.Kelompok || "Unassigned").trim();
     let displayKelas = (kelompok === "Caberawit") ? (j.Kelas || "PAUD") : "-";
 
     return `
       <tr class="bg-white border-b hover:bg-slate-50">
-        <td class="px-3 sm:px-4 py-3 text-xs font-mono text-slate-500">${j.ID}</td>
-        <td class="px-3 sm:px-4 py-3 font-semibold text-slate-800">${j.Nama}</td>
+        <td class="px-3 sm:px-4 py-3 text-xs font-mono text-slate-500">${j.ID || '-'}</td>
+        <td class="px-3 sm:px-4 py-3 font-semibold text-slate-800">${j.Nama || '-'}</td>
         <td class="px-3 sm:px-4 py-3 whitespace-nowrap">${j.TanggalLahir ? j.TanggalLahir.toString().split("T")[0] : '-'} <span class="text-xs text-emerald-600 font-bold">(${calculateAge(j.TanggalLahir)})</span></td>
         <td class="px-3 sm:px-4 py-3"><span class="px-2 py-1 rounded bg-teal-50 text-teal-700 font-semibold text-xs">${kelompok}</span></td>
         <td class="px-3 sm:px-4 py-3"><span class="px-2 py-1 rounded bg-slate-100 text-slate-700 font-semibold text-xs">${displayKelas}</span></td>
         <td class="px-3 sm:px-4 py-3">${j.Gender || '-'}</td>
         <td class="px-3 sm:px-4 py-3">${j.Alamat || '-'}</td>
-        <td class="px-3 sm:px-4 py-3"><span class="px-2 py-1 rounded-full text-xs font-semibold ${j.Status === 'Aktif' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}">${j.Status}</span></td>
+        <td class="px-3 sm:px-4 py-3"><span class="px-2 py-1 rounded-full text-xs font-semibold ${j.Status === 'Aktif' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}">${j.Status || 'Aktif'}</span></td>
         <td class="px-3 sm:px-4 py-3 text-center admin-only space-x-2 ${currentAdmin ? '' : 'hidden'}">
           <button onclick="editJamaah('${j.ID}')" class="text-amber-600 hover:text-amber-800 font-semibold p-1"><i class="fa-solid fa-pen-to-square"></i></button>
           <button onclick="deleteRow('Jamaah', '${j.ID}')" class="text-rose-600 hover:text-rose-800 p-1"><i class="fa-solid fa-trash"></i></button>
@@ -241,8 +251,11 @@ function renderJamaah() {
 }
 
 function renderPresensiTable() {
-  const filteredJamaah = (appData.jamaah || []).filter(j => {
-    const matchStatus = String(j.Status).trim().toLowerCase() === "aktif";
+  const jamaahList = Array.isArray(appData.jamaah) ? appData.jamaah : [];
+  const presensiList = Array.isArray(appData.presensi) ? appData.presensi : [];
+
+  const filteredJamaah = jamaahList.filter(j => {
+    const matchStatus = String(j.Status || "Aktif").trim().toLowerCase() === "aktif";
     const matchKelompok = String(j.Kelompok || "Caberawit").trim().toLowerCase() === String(currentKelompok).trim().toLowerCase();
     
     let matchKelas = true;
@@ -272,7 +285,7 @@ function renderPresensiTable() {
     const targetDate = selectedDateInput ? selectedDateInput.value : "";
 
     let existingStatusMap = {};
-    (appData.presensi || []).forEach(p => {
+    presensiList.forEach(p => {
       if (!p.Tanggal || !p.NamaJamaah) return;
 
       const pKel = String(p.Kelompok || "").trim().toLowerCase();
@@ -339,7 +352,7 @@ function renderPresensiTable() {
 function toggleKetInput(idx) {
   const radios = document.getElementsByName(`presensi-${idx}`);
   const ketInput = document.getElementById(`ket-${idx}`);
-  if (!ketInput) return;
+  if (!ketInput || !radios) return;
 
   let selected = "Hadir";
   for (let r of radios) {
@@ -365,7 +378,9 @@ function updateRekapHarian() {
   let h = 0, i = 0, a = 0;
   let latestPresensiMap = {};
 
-  (appData.presensi || []).forEach(p => {
+  const presensiList = Array.isArray(appData.presensi) ? appData.presensi : [];
+
+  presensiList.forEach(p => {
     if (!p.Tanggal || !p.NamaJamaah) return;
 
     const pKel = String(p.Kelompok || "").trim().toLowerCase();
@@ -417,8 +432,10 @@ async function submitPresensi() {
   const date = dateInput.value;
   const day = dayInput.value;
 
-  const filteredJamaah = (appData.jamaah || []).filter(j => {
-    const matchStatus = String(j.Status).trim().toLowerCase() === "aktif";
+  const jamaahList = Array.isArray(appData.jamaah) ? appData.jamaah : [];
+
+  const filteredJamaah = jamaahList.filter(j => {
+    const matchStatus = String(j.Status || "Aktif").trim().toLowerCase() === "aktif";
     const matchKelompok = String(j.Kelompok || "Caberawit").trim().toLowerCase() === String(currentKelompok).trim().toLowerCase();
     
     let matchKelas = true;
@@ -510,8 +527,9 @@ function renderChart() {
   const selectedKelas = document.getElementById("chart-kelas-select") ? document.getElementById("chart-kelas-select").value : "PAUD";
 
   let dailyDataMap = {};
+  const presensiList = Array.isArray(appData.presensi) ? appData.presensi : [];
 
-  (appData.presensi || []).forEach(p => {
+  presensiList.forEach(p => {
     if (!p.Tanggal) return;
 
     const pKel = String(p.Kelompok || "Caberawit").trim().toLowerCase();
@@ -814,14 +832,8 @@ function openFormJamaah(data = null) {
   if (fieldsEl) {
     fieldsEl.innerHTML = `
       <input type="hidden" name="ID" value="${data ? data.ID : ''}">
-      <div>
-        <label class="block text-xs font-semibold mb-1">Nama Lengkap</label>
-        <input type="text" name="Nama" value="${data ? (data.Nama || '') : ''}" required class="w-full border rounded px-3 py-1.5 text-sm">
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1">Tanggal Lahir</label>
-        <input type="date" name="TanggalLahir" value="${formattedDob}" required class="w-full border rounded px-3 py-1.5 text-sm">
-      </div>
+      <div><label class="block text-xs font-semibold mb-1">Nama Lengkap</label><input type="text" name="Nama" value="${data ? (data.Nama || '') : ''}" required class="w-full border rounded px-3 py-1.5 text-sm"></div>
+      <div><label class="block text-xs font-semibold mb-1">Tanggal Lahir</label><input type="date" name="TanggalLahir" value="${formattedDob}" required class="w-full border rounded px-3 py-1.5 text-sm"></div>
       
       <div>
         <label class="block text-xs font-semibold mb-1">Kelompok Usia</label>
@@ -848,11 +860,7 @@ function openFormJamaah(data = null) {
         </select>
       </div>
       
-      <div>
-        <label class="block text-xs font-semibold mb-1">Alamat</label>
-        <textarea name="Alamat" class="w-full border rounded px-3 py-1.5 text-sm">${data ? (data.Alamat || '') : ''}</textarea>
-      </div>
-
+      <div><label class="block text-xs font-semibold mb-1">Alamat</label><textarea name="Alamat" class="w-full border rounded px-3 py-1.5 text-sm">${data ? (data.Alamat || '') : ''}</textarea></div>
       <div>
         <label class="block text-xs font-semibold mb-1">Status</label>
         <select name="Status" class="w-full border rounded px-3 py-1.5 text-sm">
@@ -862,10 +870,6 @@ function openFormJamaah(data = null) {
       </div>
     `;
   }
-
-  onKelompokChange(data ? data.Kelas : null);
-  openModal("modal-form");
-}
 
   onKelompokChange(data ? data.Kelas : null);
   openModal("modal-form");
@@ -899,7 +903,8 @@ function onKelompokChange(selectedKelas = null) {
 }
 
 function editJamaah(id) {
-  const item = appData.jamaah.find(j => String(j.ID) === String(id));
+  const jamaahList = Array.isArray(appData.jamaah) ? appData.jamaah : [];
+  const item = jamaahList.find(j => String(j.ID) === String(id));
   if (item) {
     openFormJamaah(item);
   }
