@@ -324,10 +324,26 @@ function renderPresensiTable() {
 
   const displayTitle = (currentKelompok === "Caberawit") ? `${currentKelompok} (${currentKelas})` : currentKelompok;
 
+  // Ambil Elemen-elemen Form Jurnal & Kegiatan
   const jenisKegiatanEl = document.getElementById("presensi-jenis-kegiatan");
   const pemateriEl = document.getElementById("presensi-pemateri");
   const jurnalEl = document.getElementById("presensi-jurnal");
   const kendalaEl = document.getElementById("presensi-kendala");
+
+  // ATUR AKSES: Kunci (disabled) jika BUKAN Admin
+  const isReadOnly = !currentAdmin;
+  [jenisKegiatanEl, pemateriEl, jurnalEl, kendalaEl].forEach(el => {
+    if (el) {
+      el.disabled = isReadOnly;
+      if (isReadOnly) {
+        el.classList.add("bg-slate-100", "cursor-not-allowed", "opacity-80");
+        el.classList.remove("bg-slate-50", "focus:bg-white");
+      } else {
+        el.classList.remove("bg-slate-100", "cursor-not-allowed", "opacity-80");
+        el.classList.add("bg-slate-50");
+      }
+    }
+  });
 
   if (filteredJamaah.length === 0) {
     tbody.innerHTML = `
@@ -388,7 +404,6 @@ function renderPresensiTable() {
     if (jurnalEl) jurnalEl.value = savedJurnal;
     if (kendalaEl) kendalaEl.value = savedKendala;
 
-    const isReadOnly = !currentAdmin;
     const disabledRadio = isReadOnly ? "disabled cursor-not-allowed opacity-80" : "cursor-pointer";
 
     tbody.innerHTML = filteredJamaah.map((j, idx) => {
