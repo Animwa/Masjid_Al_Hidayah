@@ -2,7 +2,7 @@
 // FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (FIXED BLANK SCREEN)
 // ==========================================
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyoG4tELzEtUBHRgAiefYgMiVB16xrMnPb8xBOXXzs4XFuKVvvqHXcpues0CWk1SbLqRA/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzPCfnbwqFCNCeerNy2cCgapsrXkVWL0jnnK_bHS4RUsGS1Wx6DB-XPGHn-Fr_-gGsXcA/exec";
 
 let appData = {
   pengurus: [],
