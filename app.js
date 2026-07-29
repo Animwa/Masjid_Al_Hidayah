@@ -1,8 +1,8 @@
 // ==========================================
-// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH
+// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (ULTIMATE ACCURATE REKAP)
 // ==========================================
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby4HkEiK4yatFJvIn32c7I9dyYZ-Oy3NBIXr3zHJXGyOHMvoDGo0KzQO37MbDrghl2ARw/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwtVhpHed-ctK9-5TPkAZXDNfGb_ZaChpRfyqMgDu_Ug30d5kHaiuhabhPAd_gRfC1o_Q/exec";
 
 let appData = {
   pengurus: [],
@@ -264,28 +264,48 @@ function renderPresensiTable() {
   updateRekapMingguan();
 }
 
+// PERBAIKAN: HITUNG REKAPAN MINGGUAN SECARA AKURAT DENGAN DEDUPLIKASI UNIK PER JAMAAH + TANGGAL
 function updateRekapMingguan() {
   const now = new Date();
-  const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+  const startOfWeek = new Date(now);
+  startOfWeek.setDate(now.getDate() - now.getDay());
   startOfWeek.setHours(0, 0, 0, 0);
 
   let h = 0, i = 0, a = 0;
+  let latestPresensiMap = {}; // Key: "NamaJamaah_Tanggal" -> Value: StatusPresensi terbaru
+
   appData.presensi.forEach(p => {
+    if (!p.Tanggal || !p.NamaJamaah) return;
+
     const pKel = String(p.Kelompok || "").trim().toLowerCase();
     const pKelTarget = String(currentKelompok).trim().toLowerCase();
     const pKls = String(p.Kelas || "").trim().toLowerCase();
     const pKlsTarget = String(currentKelas).trim().toLowerCase();
 
-    if (pKel === pKelTarget && pKls === pKlsTarget && p.Tanggal) {
-      let pDateStr = p.Tanggal.toString().split("T")[0];
+    if (pKel === pKelTarget && pKls === pKlsTarget) {
+      let pDateStr = "";
+      if (p.Tanggal instanceof Date) {
+        const y = p.Tanggal.getUTCFullYear();
+        const m = String(p.Tanggal.getUTCMonth() + 1).padStart(2, '0');
+        const d = String(p.Tanggal.getUTCDate()).padStart(2, '0');
+        pDateStr = `${y}-${m}-${d}`;
+      } else {
+        pDateStr = String(p.Tanggal).split("T")[0].trim();
+      }
+
       let pDate = new Date(pDateStr + "T00:00:00");
+
       if (pDate >= startOfWeek) {
-        const st = String(p.StatusPresensi || "").trim();
-        if (st === "Hadir") h++;
-        else if (st === "Izin") i++;
-        else if (st === "Alfa") a++;
+        const uniqueKey = `${String(p.NamaJamaah).trim().toLowerCase()}_${pDateStr}`;
+        latestPresensiMap[uniqueKey] = String(p.StatusPresensi || "Hadir").trim();
       }
     }
+  });
+
+  Object.values(latestPresensiMap).forEach(status => {
+    if (status === "Hadir") h++;
+    else if (status === "Izin") i++;
+    else if (status === "Alfa") a++;
   });
 
   if (document.getElementById("stat-hadir")) document.getElementById("stat-hadir").innerText = h;
@@ -366,7 +386,6 @@ function onChartFilterChange() {
   const kelompokSelect = document.getElementById("chart-kelompok-select");
   const kelasSelect = document.getElementById("chart-kelas-select");
   
-  // Guard Clause: Batalkan jika elemen dropdown chart tidak ada di layar
   if (!kelompokSelect || !kelasSelect) return;
 
   const kVal = kelompokSelect.value;
@@ -402,7 +421,7 @@ function renderChart() {
       return;
     }
 
-    // MURNI AMBIL STRING TANGGAL (MENCEGAH BUG UTC BERGESER H-1)
+    // EXTRAKSI STRING TANGGAL MURNI (MENCEGAH BUG PERGESERAN GMT/UTC H-1)
     let rawDateStr = "";
     if (typeof p.Tanggal === "string") {
       rawDateStr = p.Tanggal.split("T")[0].trim();
@@ -439,7 +458,7 @@ function renderChart() {
   sortedDates.forEach(dateStr => {
     const parts = dateStr.split("-");
     if (parts.length === 3) {
-      labels.push(`${parts[2]}/${parts[1]}`); // Ambil format DD/MM
+      labels.push(`${parts[2]}/${parts[1]}`);
     } else {
       labels.push(dateStr);
     }
@@ -506,7 +525,7 @@ function renderChart() {
       maintainAspectRatio: false,
       layout: {
         padding: {
-          top: 25, // Padding atas ekstra agar persentase 100% tidak menabrak legenda
+          top: 25,
           bottom: 10,
           left: 10,
           right: 15
@@ -519,7 +538,7 @@ function renderChart() {
           labels: {
             boxWidth: 15,
             boxHeight: 12,
-            padding: 20, // Ruang antara LEGENDA dan GARIS GRAFIK
+            padding: 20,
             font: { family: "sans-serif", weight: "bold", size: 12 }
           }
         },
@@ -530,7 +549,6 @@ function renderChart() {
             }
           }
         },
-        // INDIKATOR PERSENTASE PADA TITIK GRAFIK (CLEAN & ANTI-TABRAK)
         datalabels: {
           anchor: function(context) {
             return context.dataset.data[context.dataIndex] >= 100 ? "center" : "end";
@@ -554,7 +572,7 @@ function renderChart() {
       scales: {
         y: {
           beginAtZero: true,
-          suggestedMax: 115, // Dinaikkan ke 115% agar titik 100% punya ruang dan tidak menempel di batas paling atas
+          suggestedMax: 115,
           title: { display: true, text: "Persentase Kehadiran (%)", font: { size: 11 } },
           ticks: {
             stepSize: 20,
