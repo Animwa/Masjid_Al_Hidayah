@@ -302,13 +302,18 @@ function renderPresensiTable() {
     const isReadOnly = !currentAdmin;
     const disabledAttr = isReadOnly ? "disabled cursor-not-allowed opacity-80" : "cursor-pointer";
 
-    tbody.innerHTML = filteredJamaah.map((j, idx) => {
+tbody.innerHTML = filteredJamaah.map((j, idx) => {
       const namaKey = String(j.Nama).trim().toLowerCase();
       const exData = existingStatusMap[namaKey] || { status: "Hadir", keterangan: "" };
       const savedStatus = exData.status;
       const savedKet = exData.keterangan;
 
       const isIzinChecked = (savedStatus === 'Izin');
+      const isReadOnly = !currentAdmin;
+      
+      // Radio button dan input teks dikunci HANYA jika bukan Admin
+      const disabledRadio = isReadOnly ? "disabled cursor-not-allowed opacity-80" : "cursor-pointer";
+      const disabledKet = (isReadOnly || !isIzinChecked) ? "disabled" : "";
 
       return `
         <tr class="bg-white border-b hover:bg-slate-50">
@@ -317,22 +322,20 @@ function renderPresensiTable() {
             ${existingStatusMap[namaKey] ? `<span class="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold border border-emerald-200">Tersimpan</span>` : ''}
           </td>
           <td class="px-3 py-3 text-center">
-            <input type="radio" name="presensi-${idx}" value="Hadir" onchange="toggleKetInput(${idx})" ${savedStatus === 'Hadir' ? 'checked' : ''} ${disabledAttr} class="w-4 h-4 text-emerald-600 focus:ring-emerald-500">
+            <input type="radio" name="presensi-${idx}" value="Hadir" onchange="toggleKetInput(${idx})" ${savedStatus === 'Hadir' ? 'checked' : ''} ${disabledRadio} class="w-4 h-4 text-emerald-600 focus:ring-emerald-500">
           </td>
           <td class="px-3 py-3 text-center">
-            <input type="radio" name="presensi-${idx}" value="Izin" onchange="toggleKetInput(${idx})" ${savedStatus === 'Izin' ? 'checked' : ''} ${disabledAttr} class="w-4 h-4 text-amber-500 focus:ring-amber-500">
+            <input type="radio" name="presensi-${idx}" value="Izin" onchange="toggleKetInput(${idx})" ${savedStatus === 'Izin' ? 'checked' : ''} ${disabledRadio} class="w-4 h-4 text-amber-500 focus:ring-amber-500">
           </td>
           <td class="px-3 py-3 text-center">
-            <input type="radio" name="presensi-${idx}" value="Alfa" onchange="toggleKetInput(${idx})" ${savedStatus === 'Alfa' ? 'checked' : ''} ${disabledAttr} class="w-4 h-4 text-rose-600 focus:ring-rose-500">
+            <input type="radio" name="presensi-${idx}" value="Alfa" onchange="toggleKetInput(${idx})" ${savedStatus === 'Alfa' ? 'checked' : ''} ${disabledRadio} class="w-4 h-4 text-rose-600 focus:ring-rose-500">
           </td>
           <td class="px-3 py-3">
-            <input type="text" id="ket-${idx}" value="${savedKet}" placeholder="Alasan izin..." ${!isIzinChecked || isReadOnly ? 'disabled' : ''} class="w-full text-xs px-2 py-1 border rounded bg-slate-50 focus:bg-white focus:ring-1 focus:ring-amber-500 transition-all ${!isIzinChecked ? 'opacity-40' : ''}">
+            <input type="text" id="ket-${idx}" value="${savedKet}" placeholder="${isReadOnly ? '-' : 'Alasan izin...'}" ${disabledKet} class="w-full text-xs px-2 py-1 border rounded bg-slate-50 focus:bg-white focus:ring-1 focus:ring-amber-500 transition-all ${!isIzinChecked ? 'opacity-40' : ''}">
           </td>
         </tr>
       `;
     }).join("");
-  }
-
   updateRekapHarian();
 }
 
