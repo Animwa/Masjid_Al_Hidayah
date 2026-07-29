@@ -910,7 +910,7 @@ function openFormKegiatan() {
         </div>
         <div>
           <label class="block text-xs font-semibold mb-1">Hari</label>
-          <input type="text" id="modal-kegiatan-hari" name="Hari" readonly required class="w-full border rounded px-3 py-1.5 text-sm bg-slate-100 font-semibold text-slate-700" placeholder="Otomatis">
+          <input type="text" id="modal-kegiatan-hari" name="Hari" readonly class="w-full border rounded px-3 py-1.5 text-sm bg-slate-100 font-semibold text-slate-700" placeholder="Otomatis">
         </div>
       </div>
       <div>
@@ -927,22 +927,37 @@ function openFormKegiatan() {
       </div>
     `;
   }
+  
+  // Atur tanggal default ke hari ini & isi nilai Hari secara otomatis saat form terbuka
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  const dateEl = document.getElementById("modal-kegiatan-tanggal");
+  if (dateEl) {
+    dateEl.value = `${year}-${month}-${day}`;
+    updateModalHari();
+  }
+
   openModal("modal-form");
 }
 
 function updateModalHari() {
   const dateInput = document.getElementById("modal-kegiatan-tanggal");
   const hariInput = document.getElementById("modal-kegiatan-hari");
-  if (!dateInput || !hariInput || !dateInput.value) return;
+  if (!dateInput || !hariInput) return;
+
+  if (!dateInput.value) {
+    hariInput.value = "";
+    return;
+  }
 
   const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-  // Menggunakan T00:00:00 agar konversi Date tepat mengikuti zona waktu lokal
   const d = new Date(dateInput.value + "T00:00:00");
   if (!isNaN(d.getTime())) {
     hariInput.value = days[d.getDay()];
   }
 }
-
 function openFormPengurus() {
   activeFormType = "Pengurus";
   const titleEl = document.getElementById("modal-form-title");
