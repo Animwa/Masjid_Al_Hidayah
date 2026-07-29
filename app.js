@@ -2,7 +2,7 @@
 // FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (COMPLETE AGENDA & REKAP JURNAL)
 // ==========================================
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyXX-UdtHWrROk1h32P1neXAG1yvAzH6tpjsSUSaAjbdYdksg82khO69bre2XyCV6ZOjQ/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx9RYNRpET-uTpc89eAMou-jPqWLrkZ0c0VRn7OWzwQ5V-WIW8XqT5LJao15eLC1gevNQ/exec";
 
 let appData = {
   pengurus: [],
