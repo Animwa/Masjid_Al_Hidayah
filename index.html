@@ -250,17 +250,20 @@
         </div>
 
         <div class="overflow-x-auto">
-          <table class="w-full text-xs sm:text-sm text-left">
-            <thead class="text-[11px] sm:text-xs text-slate-700 uppercase bg-slate-100">
-              <tr>
-                <th class="px-4 py-3 font-bold">Nama Jamaah</th>
-                <th class="px-3 py-3 text-center w-20 font-bold">Hadir</th>
-                <th class="px-3 py-3 text-center w-20 font-bold">Izin</th>
-                <th class="px-3 py-3 text-center w-20 font-bold">Alfa</th>
-              </tr>
-            </thead>
-            <tbody id="table-presensi-body" class="divide-y divide-slate-100"></tbody>
-          </table>
+<table class="w-full text-sm text-left text-slate-600">
+  <thead class="text-xs text-slate-700 uppercase bg-slate-100">
+    <tr>
+      <th scope="col" class="px-4 py-3">NAMA JAMAAH</th>
+      <th scope="col" class="px-3 py-3 text-center w-16">HADIR</th>
+      <th scope="col" class="px-3 py-3 text-center w-16">IZIN</th>
+      <th scope="col" class="px-3 py-3 text-center w-16">ALFA</th>
+      <th scope="col" class="px-3 py-3 text-left w-48">KETERANGAN</th>
+    </tr>
+  </thead>
+  <tbody id="table-presensi-body">
+    <!-- Diisi secara dinamis oleh app.js -->
+  </tbody>
+</table>
         </div>
 
         <div class="admin-only hidden flex justify-end pt-3">
