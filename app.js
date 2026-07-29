@@ -1,5 +1,5 @@
 // ==========================================
-// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (STRICT UPDATE REKAP FIXED)
+// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (MULTI-CHART & STRICT PERCENTAGE)
 // ==========================================
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyXX-UdtHWrROk1h32P1neXAG1yvAzH6tpjsSUSaAjbdYdksg82khO69bre2XyCV6ZOjQ/exec";
@@ -16,7 +16,9 @@ let currentAdmin = null;
 let currentKelompok = "Caberawit";
 let currentKelas = "PAUD";
 let activeFormType = null;
-let rekapChartInstance = null;
+
+// Map untuk menyimpan Instance Chart.js agar tidak menumpuk/bentrok saat render ulang
+let chartInstances = {};
 
 if (typeof ChartDataLabels !== 'undefined') {
   Chart.register(ChartDataLabels);
@@ -480,12 +482,6 @@ async function submitPresensi() {
     if (json.success) {
       showMessage("Presensi berhasil diperbarui!", "success");
       await loadAllData();
-      
-      const chartKSelect = document.getElementById("chart-kelompok-select");
-      if (chartKSelect) {
-        chartKSelect.value = currentKelompok;
-        onChartFilterChange();
-      }
     } else {
       showMessage("Gagal menyimpan: " + json.error, "error");
     }
@@ -494,40 +490,70 @@ async function submitPresensi() {
   }
 }
 
+// ==========================================
+// RENDER SELURUH GRAFIK REKAPITULASI BERURUTAN KE BAWAL
+// ==========================================
+
 function onChartFilterChange() {
-  const kelompokSelect = document.getElementById("chart-kelompok-select");
-  const kelasSelect = document.getElementById("chart-kelas-select");
-  
-  if (!kelompokSelect || !kelasSelect) return;
-
-  const kVal = kelompokSelect.value;
-  kelasSelect.innerHTML = "";
-
-  if (kVal === "Caberawit") {
-    kelasSelect.style.display = "inline-block";
-    const options = ["PAUD", "Tilawati 1", "Tilawati 2", "Tilawati 3", "Tilawati 4", "Tilawati 5", "Al-Qur'an"];
-    options.forEach(opt => {
-      kelasSelect.innerHTML += `<option value="${opt}">${opt}</option>`;
-    });
-  } else {
-    kelasSelect.style.display = "none";
-    kelasSelect.innerHTML = `<option value="Umum">Umum</option>`;
-  }
-
-  renderChart();
+  renderAllCharts();
 }
 
-function renderChart() {
-  const chartCanvas = document.getElementById("rekapChart");
+function renderAllCharts() {
+  const container = document.getElementById("charts-wrapper");
+  if (!container) return;
+
+  // Daftar lengkap seluruh kelompok dan kelas yang dirender berurutan ke bawah
+  const chartConfigs = [
+    { kelompok: "Caberawit", kelas: "PAUD", title: "Caberawit - PAUD" },
+    { kelompok: "Caberawit", kelas: "Tilawati 1", title: "Caberawit - Tilawati 1" },
+    { kelompok: "Caberawit", kelas: "Tilawati 2", title: "Caberawit - Tilawati 2" },
+    { kelompok: "Caberawit", kelas: "Tilawati 3", title: "Caberawit - Tilawati 3" },
+    { kelompok: "Caberawit", kelas: "Tilawati 4", title: "Caberawit - Tilawati 4" },
+    { kelompok: "Caberawit", kelas: "Tilawati 5", title: "Caberawit - Tilawati 5" },
+    { kelompok: "Caberawit", kelas: "Al-Qur'an", title: "Caberawit - Al-Qur'an" },
+    { kelompok: "Pra Remaja", kelas: "Umum", title: "Pra Remaja (SMP)" },
+    { kelompok: "Remaja", kelas: "Umum", title: "Remaja (SMA)" },
+    { kelompok: "Muda-Mudi", kelas: "Umum", title: "Muda-Mudi" },
+    { kelompok: "Bapak-Bapak", kelas: "Umum", title: "Bapak-Bapak" },
+    { kelompok: "Ibu-Ibu", kelas: "Umum", title: "Ibu-Ibu" }
+  ];
+
+  // Destroy seluruh chart instance lama agar tidak terjadi memory leak
+  Object.values(chartInstances).forEach(chart => chart && typeof chart.destroy === 'function' && chart.destroy());
+  chartInstances = {};
+
+  // Buat kontainer HTML kartu grafik untuk tiap kelas
+  container.innerHTML = chartConfigs.map((cfg, idx) => `
+    <div class="bg-white p-4 sm:p-6 rounded-xl border border-slate-200 shadow-sm">
+      <div class="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
+        <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-teal-500"></span> ${cfg.title}
+        </h3>
+        <span class="text-xs px-2.5 py-1 bg-slate-100 text-slate-600 rounded-full font-semibold">
+          1 Bulan Terakhir
+        </span>
+      </div>
+      <div class="relative h-64 sm:h-72">
+        <canvas id="chart-canvas-${idx}"></canvas>
+      </div>
+    </div>
+  `).join("");
+
+  // Render masing-masing chart secara terpisah
+  chartConfigs.forEach((cfg, idx) => {
+    renderSingleChart(`chart-canvas-${idx}`, cfg.kelompok, cfg.kelas);
+  });
+}
+
+function renderSingleChart(canvasId, selectedKelompok, selectedKelas) {
+  const chartCanvas = document.getElementById(canvasId);
   if (!chartCanvas) return;
-  
+
   const ctx = chartCanvas.getContext("2d");
 
-  const selectedKelompok = document.getElementById("chart-kelompok-select") ? document.getElementById("chart-kelompok-select").value : "Caberawit";
-  const selectedKelas = document.getElementById("chart-kelas-select") ? document.getElementById("chart-kelas-select").value : "PAUD";
-
-  // 1. Hitung total pasti jamaah aktif di kelompok & kelas ini (misal: 39 orang)
-  const totalJamaahAktifList = (appData.jamaah || []).filter(j => {
+  // 1. Hitung total pasti jamaah aktif terdaftar di kelompok & kelas ini (misal: 39 orang)
+  const jamaahList = Array.isArray(appData.jamaah) ? appData.jamaah : [];
+  const totalJamaahAktifList = jamaahList.filter(j => {
     const matchStatus = String(j.Status || "Aktif").trim().toLowerCase() === "aktif";
     const matchKelompok = String(j.Kelompok || "Caberawit").trim().toLowerCase() === String(selectedKelompok).trim().toLowerCase();
     let matchKelas = true;
@@ -540,8 +566,9 @@ function renderChart() {
   const totalJamaahKelas = totalJamaahAktifList.length > 0 ? totalJamaahAktifList.length : 1;
 
   let dailyDataMap = {};
+  const presensiList = Array.isArray(appData.presensi) ? appData.presensi : [];
 
-  (appData.presensi || []).forEach(p => {
+  presensiList.forEach(p => {
     if (!p.Tanggal) return;
 
     const pKel = String(p.Kelompok || "Caberawit").trim().toLowerCase();
@@ -594,8 +621,7 @@ function renderChart() {
 
     const stats = dailyDataMap[dateStr];
 
-    // PEMBAGIAN SELALU MENGGUNAKAN TOTAL JAMAAH KELAS (39 ORANG)
-    // TAMPILKAN 1 DESIMAL KOMA (misal: 2.6%)
+    // Perhitungan persentase konsisten berbasis total jamaah kelas aktif
     const pctHadir = Number(((stats.Hadir / totalJamaahKelas) * 100).toFixed(1));
     const pctIzin = Number(((stats.Izin / totalJamaahKelas) * 100).toFixed(1));
     const pctAlfa = Number(((stats.Alfa / totalJamaahKelas) * 100).toFixed(1));
@@ -605,8 +631,6 @@ function renderChart() {
     alfaData.push(pctAlfa);
   });
 
-  if (rekapChartInstance) rekapChartInstance.destroy();
-
   if (labels.length === 0) {
     labels = ["Belum Ada Data"];
     hadirData = [0];
@@ -614,7 +638,7 @@ function renderChart() {
     alfaData = [0];
   }
 
-  rekapChartInstance = new Chart(ctx, {
+  chartInstances[canvasId] = new Chart(ctx, {
     type: "line",
     data: {
       labels: labels,
@@ -623,10 +647,10 @@ function renderChart() {
           label: "Hadir (%)",
           data: hadirData,
           borderColor: "#10b981",
-          backgroundColor: "rgba(16, 185, 129, 0.1)",
-          borderWidth: 3,
+          backgroundColor: "rgba(16, 185, 129, 0.08)",
+          borderWidth: 2.5,
           pointBackgroundColor: "#10b981",
-          pointRadius: 5,
+          pointRadius: 4,
           tension: 0.2,
           fill: true
         },
@@ -634,10 +658,10 @@ function renderChart() {
           label: "Izin (%)",
           data: izinData,
           borderColor: "#f59e0b",
-          backgroundColor: "rgba(245, 158, 11, 0.1)",
-          borderWidth: 3,
+          backgroundColor: "rgba(245, 158, 11, 0.08)",
+          borderWidth: 2.5,
           pointBackgroundColor: "#f59e0b",
-          pointRadius: 5,
+          pointRadius: 4,
           tension: 0.2,
           fill: false
         },
@@ -645,10 +669,10 @@ function renderChart() {
           label: "Alfa (%)",
           data: alfaData,
           borderColor: "#ef4444",
-          backgroundColor: "rgba(239, 68, 68, 0.1)",
-          borderWidth: 3,
+          backgroundColor: "rgba(239, 68, 68, 0.08)",
+          borderWidth: 2.5,
           pointBackgroundColor: "#ef4444",
-          pointRadius: 5,
+          pointRadius: 4,
           tension: 0.2,
           fill: false
         }
@@ -658,13 +682,13 @@ function renderChart() {
       responsive: true,
       maintainAspectRatio: false,
       layout: {
-        padding: { top: 25, bottom: 10, left: 10, right: 15 }
+        padding: { top: 20, bottom: 10, left: 10, right: 15 }
       },
       plugins: {
         legend: {
           position: "top",
           align: "center",
-          labels: { boxWidth: 15, boxHeight: 12, padding: 20, font: { family: "sans-serif", weight: "bold", size: 12 } }
+          labels: { boxWidth: 12, boxHeight: 10, padding: 15, font: { family: "sans-serif", weight: "bold", size: 11 } }
         },
         tooltip: {
           callbacks: { label: function(context) { return `${context.dataset.label}: ${context.raw}%`; } }
@@ -672,9 +696,9 @@ function renderChart() {
         datalabels: {
           anchor: function(context) { return context.dataset.data[context.dataIndex] >= 100 ? "center" : "end"; },
           align: function(context) { return context.dataset.data[context.dataIndex] >= 100 ? "bottom" : "top"; },
-          offset: 6,
+          offset: 4,
           formatter: function(val) { return val > 0 ? val + "%" : ""; },
-          font: { size: 11, weight: "bold" },
+          font: { size: 10, weight: "bold" },
           color: function(context) { return context.dataset.borderColor; }
         }
       },
@@ -682,16 +706,17 @@ function renderChart() {
         y: {
           beginAtZero: true,
           suggestedMax: 115,
-          title: { display: true, text: "Persentase Kehadiran (%)", font: { size: 11 } },
+          title: { display: true, text: "Persentase Kehadiran (%)", font: { size: 10 } },
           ticks: { stepSize: 20, callback: function(val) { return val <= 100 ? val + "%" : ""; } }
         },
         x: {
-          title: { display: true, text: "Tanggal Presensi", font: { size: 11 } }
+          title: { display: true, text: "Tanggal Presensi", font: { size: 10 } }
         }
       }
     }
   });
 }
+
 function openLoginModal() {
   const modal = document.getElementById("modal-login");
   if (modal) modal.classList.remove("hidden");
