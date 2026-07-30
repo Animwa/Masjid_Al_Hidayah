@@ -2,7 +2,7 @@
 // FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (FIXED ADMIN PERMISSION & PERSISTENT SESSION)
 // ==========================================
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx9RYNRpET-uTpc89eAMou-jPqWLrkZ0c0VRn7OWzwQ5V-WIW8XqT5LJao15eLC1gevNQ/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzh9wo1SMBxjDuM0Syv9dIXxQDyIMFzA1VDQcnOQkBLMAIoIPK5vhOaz_WvoaPbqDqC4w/exec";
 
 let appData = {
   pengurus: [],
@@ -581,7 +581,8 @@ async function submitPresensi() {
       jenisKegiatan: jenisKegiatan,
       pemateri: pemateri,
       jurnal: jurnal,
-      kendala: kendala
+      kendala: kendala,
+      admin: currentAdmin ? currentAdmin.nama : "Sistem/Admin" // Mengirim nama Admin yang login
     });
   });
 
@@ -593,7 +594,7 @@ async function submitPresensi() {
     });
     const json = await res.json();
     if (json.success) {
-      showMessage("Presensi dan jurnal berhasil disimpan!", "success");
+      showMessage(`Presensi berhasil diperbarui oleh ${currentAdmin.nama}!`, "success");
       await loadAllData();
     } else {
       showMessage("Gagal menyimpan: " + json.error, "error");
@@ -603,14 +604,27 @@ async function submitPresensi() {
   }
 }
 
-// 5. RENDER REKAPITULASI JURNAL TIAP KELAS (SCROLLABLE & SAFELY PARSED)
 // 5. RENDER REKAPITULASI JURNAL TIAP KELAS (DENGAN STATISTIK HADIR, IZIN, ALFA)
 function renderJurnalRekap() {
   const container = document.getElementById("jurnal-cards-wrapper");
   if (!container) return;
 
   const presensiList = Array.isArray(appData.presensi) ? appData.presensi : [];
+// Pada pembacaan loop presensi:
+const valAdmin = p.Admin || p.admin || 'Admin';
 
+if (!journalsByDate[pDateStr]) {
+  journalsByDate[pDateStr] = {
+    tanggal: pDateStr,
+    hari: computedHari,
+    jenisKegiatan: valJenis,
+    pemateri: valPemateri,
+    jurnal: valJurnal,
+    kendala: valKendala,
+    admin: valAdmin,
+    jamaahMap: {}
+  };
+}
   const classConfigs = [
     { kelompok: "Caberawit", kelas: "PAUD", title: "Caberawit - PAUD" },
     { kelompok: "Caberawit", kelas: "Tilawati 1", title: "Caberawit - Tilawati 1" },
