@@ -2,7 +2,7 @@
 // FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (FIXED ADMIN PERMISSION & PERSISTENT SESSION)
 // ==========================================
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzqJggcVyF_JeOvPWcewAn58vFGXBkWLR0OnVaGtY2STyX7p-nHrPsmUR0XWfGw4A-K/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw4wxEgmJwItL36_2NmgamfJKUXU14DDwfKCxDuclGq62GF8lz94MP7R9qjw7ENIj77Ow/exec";
 
 let appData = {
   pengurus: [],
