@@ -581,8 +581,7 @@ async function submitPresensi() {
       jenisKegiatan: jenisKegiatan,
       pemateri: pemateri,
       jurnal: jurnal,
-      kendala: kendala,
-      admin: currentAdmin ? currentAdmin.nama : "Sistem/Admin" // Mengirim nama Admin yang login
+      kendala: kendala
     });
   });
 
@@ -594,7 +593,7 @@ async function submitPresensi() {
     });
     const json = await res.json();
     if (json.success) {
-      showMessage(`Presensi berhasil diperbarui oleh ${currentAdmin.nama}!`, "success");
+      showMessage("Presensi dan jurnal berhasil disimpan!", "success");
       await loadAllData();
     } else {
       showMessage("Gagal menyimpan: " + json.error, "error");
@@ -604,27 +603,14 @@ async function submitPresensi() {
   }
 }
 
+// 5. RENDER REKAPITULASI JURNAL TIAP KELAS (SCROLLABLE & SAFELY PARSED)
 // 5. RENDER REKAPITULASI JURNAL TIAP KELAS (DENGAN STATISTIK HADIR, IZIN, ALFA)
 function renderJurnalRekap() {
   const container = document.getElementById("jurnal-cards-wrapper");
   if (!container) return;
 
   const presensiList = Array.isArray(appData.presensi) ? appData.presensi : [];
-// Pada pembacaan loop presensi:
-const valAdmin = p.Admin || p.admin || 'Admin';
 
-if (!journalsByDate[pDateStr]) {
-  journalsByDate[pDateStr] = {
-    tanggal: pDateStr,
-    hari: computedHari,
-    jenisKegiatan: valJenis,
-    pemateri: valPemateri,
-    jurnal: valJurnal,
-    kendala: valKendala,
-    admin: valAdmin,
-    jamaahMap: {}
-  };
-}
   const classConfigs = [
     { kelompok: "Caberawit", kelas: "PAUD", title: "Caberawit - PAUD" },
     { kelompok: "Caberawit", kelas: "Tilawati 1", title: "Caberawit - Tilawati 1" },
