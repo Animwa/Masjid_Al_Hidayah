@@ -604,6 +604,7 @@ async function submitPresensi() {
 }
 
 // 5. RENDER REKAPITULASI JURNAL TIAP KELAS (SCROLLABLE & SAFELY PARSED)
+// 5. RENDER REKAPITULASI JURNAL TIAP KELAS (DENGAN STATISTIK HADIR, IZIN, ALFA)
 function renderJurnalRekap() {
   const container = document.getElementById("jurnal-cards-wrapper");
   if (!container) return;
@@ -637,10 +638,10 @@ function renderJurnalRekap() {
       const matchKel = pKel === String(cfg.kelompok).trim().toLowerCase();
       const matchKls = (cfg.kelompok === "Caberawit") ? (pKls === String(cfg.kelas).trim().toLowerCase()) : true;
 
-      if (matchKel && matchKls && p.Tanggal) {
+      if (matchKel && matchKls && p.Tanggal && p.NamaJamaah) {
         let pDateStr = (p.Tanggal instanceof Date) ? p.Tanggal.toISOString().split("T")[0] : String(p.Tanggal).split("T")[0].trim();
 
-        // Hitung Hari Otomatis jika p.Hari tidak terdefinisi
+        // Hitung Hari Otomatis jika p.Hari kosong
         let computedHari = p.Hari || p.hari;
         if (!computedHari) {
           const d = new Date(pDateStr + "T00:00:00");
@@ -651,23 +652,32 @@ function renderJurnalRekap() {
           }
         }
 
-        // Membaca nilai dari Google Sheets dengan toleransi Kapital / Kecil
         const valJenis = p.JenisKegiatan || p.jenisKegiatan || 'Pengajian Rutin';
         const valPemateri = p.Pemateri || p.pemateri || '-';
         const valJurnal = p.Jurnal || p.jurnal || '-';
         const valKendala = p.Kendala || p.kendala || '-';
+        const valStatus = String(p.StatusPresensi || "Hadir").trim();
 
-        // Simpan data unik per tanggal jika setidaknya salah satu jurnal terisi
-        if (!journalsByDate[pDateStr] || valJurnal !== '-' || valPemateri !== '-') {
+        if (!journalsByDate[pDateStr]) {
           journalsByDate[pDateStr] = {
             tanggal: pDateStr,
             hari: computedHari,
             jenisKegiatan: valJenis,
             pemateri: valPemateri,
             jurnal: valJurnal,
-            kendala: valKendala
+            kendala: valKendala,
+            jamaahMap: {}
           };
+        } else {
+          // Update data jurnal jika ditemukan record yang terisi
+          if (valJurnal !== '-') journalsByDate[pDateStr].jurnal = valJurnal;
+          if (valPemateri !== '-') journalsByDate[pDateStr].pemateri = valPemateri;
+          if (valKendala !== '-') journalsByDate[pDateStr].kendala = valKendala;
+          if (valJenis !== 'Pengajian Rutin') journalsByDate[pDateStr].jenisKegiatan = valJenis;
         }
+
+        // Catat status jamaah unik per tanggal (anti duplikat hitungan)
+        journalsByDate[pDateStr].jamaahMap[String(p.NamaJamaah).trim().toLowerCase()] = valStatus;
       }
     });
 
@@ -687,18 +697,46 @@ function renderJurnalRekap() {
         ${datesList.length === 0 ? `
           <p class="text-xs text-slate-400 italic py-2">Belum ada jurnal pengajian yang terdata untuk kelas ini.</p>
         ` : `
-          <div class="space-y-3 max-h-72 overflow-y-auto pr-1">
-            ${datesList.map(j => `
-              <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs space-y-1.5">
-                <div class="flex justify-between items-center text-slate-700 font-bold border-b border-slate-200/60 pb-1.5 mb-1.5">
-                  <span class="text-teal-800"><i class="fa-solid fa-calendar-day mr-1"></i> ${j.hari}, ${j.tanggal}</span>
-                  <span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-[10px]">${j.jenisKegiatan}</span>
+          <div class="space-y-3 max-h-80 overflow-y-auto pr-1">
+            ${datesList.map(j => {
+              // Hitung statistik Hadir, Izin, Alfa untuk tanggal ini
+              let h = 0, i = 0, a = 0;
+              Object.values(j.jamaahMap).forEach(st => {
+                if (st === "Hadir") h++;
+                else if (st === "Izin") i++;
+                else if (st === "Alfa") a++;
+              });
+
+              return `
+                <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs space-y-2">
+                  <div class="flex flex-wrap justify-between items-center text-slate-700 font-bold border-b border-slate-200/60 pb-2 gap-2">
+                    <span class="text-teal-800 flex items-center gap-1">
+                      <i class="fa-solid fa-calendar-day"></i> ${j.hari}, ${j.tanggal}
+                    </span>
+                    <span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-[10px] font-bold">
+                      ${j.jenisKegiatan}
+                    </span>
+                  </div>
+
+                  <!-- BADGE JUMLAH PRESENSI (HADIR, IZIN, ALFA) -->
+                  <div class="flex items-center gap-2 my-1">
+                    <span class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-bold border border-emerald-200">
+                      <i class="fa-solid fa-user-check mr-1"></i> Hadir: ${h}
+                    </span>
+                    <span class="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[10px] font-bold border border-amber-200">
+                      <i class="fa-solid fa-user-clock mr-1"></i> Izin: ${i}
+                    </span>
+                    <span class="px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 text-[10px] font-bold border border-rose-200">
+                      <i class="fa-solid fa-user-xmark mr-1"></i> Alfa: ${a}
+                    </span>
+                  </div>
+
+                  <p><b class="text-slate-700">Pemateri:</b> ${j.pemateri}</p>
+                  <p><b class="text-slate-700">Capaian Jurnal:</b> ${j.jurnal}</p>
+                  <p class="text-slate-500"><b class="text-slate-700">Kendala KBM:</b> ${j.kendala}</p>
                 </div>
-                <p><b class="text-slate-700">Pemateri:</b> ${j.pemateri}</p>
-                <p><b class="text-slate-700">Capaian Jurnal:</b> ${j.jurnal}</p>
-                <p class="text-slate-500"><b class="text-slate-700">Kendala KBM:</b> ${j.kendala}</p>
-              </div>
-            `).join("")}
+              `;
+            }).join("")}
           </div>
         `}
       </div>
