@@ -1,5 +1,5 @@
 // ==========================================
-// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (STABLE & PERSISTENT SESSION)
+// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (FIXED ADMIN PERMISSION & PERSISTENT SESSION)
 // ==========================================
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx9RYNRpET-uTpc89eAMou-jPqWLrkZ0c0VRn7OWzwQ5V-WIW8XqT5LJao15eLC1gevNQ/exec";
@@ -25,7 +25,7 @@ if (typeof ChartDataLabels !== 'undefined') {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // 1. Cek & Pulihkan Sesi Admin dari sessionStorage agar tidak logout saat refresh
+  // 1. Cek & Pulihkan Sesi Admin dari sessionStorage (agar tidak logout saat refresh)
   const savedAdmin = sessionStorage.getItem("currentAdmin");
   if (savedAdmin) {
     try {
@@ -37,6 +37,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   setDefaultDate();
   loadAllData();
+  
+  // 2. Wajib Panggil updateAdminUI di awal agar elemen khusus admin tersembunyi untuk publik
+  updateAdminUI();
+  
   switchTab("beranda");
 });
 
@@ -239,6 +243,7 @@ function renderBerandaKegiatan() {
             ${k.Keterangan || 'Tidak ada catatan tambahan.'}
           </p>
         </div>
+        <!-- TOMBOL HAPUS HANYA MUNCUL JIKA ADMIN KELIHATAN -->
         <div class="admin-only ${currentAdmin ? '' : 'hidden'} flex justify-end pt-2 border-t border-slate-100">
           <button onclick="deleteRow('Kegiatan', '${k.ID}')" class="text-rose-600 hover:text-rose-800 text-xs font-semibold flex items-center gap-1 p-1">
             <i class="fa-solid fa-trash"></i> Hapus Agenda
@@ -334,13 +339,12 @@ function renderPresensiTable() {
 
   const displayTitle = (currentKelompok === "Caberawit") ? `${currentKelompok} (${currentKelas})` : currentKelompok;
 
-  // Ambil Elemen Form Jurnal
   const jenisKegiatanEl = document.getElementById("presensi-jenis-kegiatan");
   const pemateriEl = document.getElementById("presensi-pemateri");
   const jurnalEl = document.getElementById("presensi-jurnal");
   const kendalaEl = document.getElementById("presensi-kendala");
 
-  // ATUR AKSES: Kunci (disabled) jika BUKAN Admin
+  // ATUR AKSES INPUT TEKS: Kunci (disabled) jika BUKAN Admin
   const isReadOnly = !currentAdmin;
   [jenisKegiatanEl, pemateriEl, jurnalEl, kendalaEl].forEach(el => {
     if (el) {
@@ -682,7 +686,7 @@ function renderJurnalRekap() {
   }).join("");
 }
 
-// 6. RENDER SELURUH GRAFIK REKAPITULASI (DENGAN ANTI-DUPLIKAT)
+// 6. RENDER SELURUH GRAFIK REKAPITULASI (ANTI-DUPLIKAT JAMAAH)
 function onChartFilterChange() {
   renderAllCharts();
 }
@@ -752,7 +756,7 @@ function renderSingleChart(canvasId, selectedKelompok, selectedKelas) {
   let dailyDataMap = {};
   const presensiList = Array.isArray(appData.presensi) ? appData.presensi : [];
 
-  // FILTER LOGIKA ANTI-DUPLIKAT: Menyaring hanya 1 entri unik per jamaah per tanggal
+  // SANITASI & ANTI-DUPLIKAT JAMAAH
   let uniquePresensiMap = {};
 
   presensiList.forEach(p => {
