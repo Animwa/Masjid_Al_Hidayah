@@ -1,5 +1,5 @@
 // ==========================================
-// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (COMPLETE AGENDA & REKAP JURNAL)
+// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (STABLE & PERSISTENT SESSION)
 // ==========================================
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx9RYNRpET-uTpc89eAMou-jPqWLrkZ0c0VRn7OWzwQ5V-WIW8XqT5LJao15eLC1gevNQ/exec";
@@ -25,6 +25,16 @@ if (typeof ChartDataLabels !== 'undefined') {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  // 1. Cek & Pulihkan Sesi Admin dari sessionStorage agar tidak logout saat refresh
+  const savedAdmin = sessionStorage.getItem("currentAdmin");
+  if (savedAdmin) {
+    try {
+      currentAdmin = JSON.parse(savedAdmin);
+    } catch (e) {
+      currentAdmin = null;
+    }
+  }
+
   setDefaultDate();
   loadAllData();
   switchTab("beranda");
@@ -229,7 +239,7 @@ function renderBerandaKegiatan() {
             ${k.Keterangan || 'Tidak ada catatan tambahan.'}
           </p>
         </div>
-        <div class="admin-only hidden flex justify-end pt-2 border-t border-slate-100">
+        <div class="admin-only ${currentAdmin ? '' : 'hidden'} flex justify-end pt-2 border-t border-slate-100">
           <button onclick="deleteRow('Kegiatan', '${k.ID}')" class="text-rose-600 hover:text-rose-800 text-xs font-semibold flex items-center gap-1 p-1">
             <i class="fa-solid fa-trash"></i> Hapus Agenda
           </button>
@@ -324,7 +334,7 @@ function renderPresensiTable() {
 
   const displayTitle = (currentKelompok === "Caberawit") ? `${currentKelompok} (${currentKelas})` : currentKelompok;
 
-  // Ambil Elemen-elemen Form Jurnal & Kegiatan
+  // Ambil Elemen Form Jurnal
   const jenisKegiatanEl = document.getElementById("presensi-jenis-kegiatan");
   const pemateriEl = document.getElementById("presensi-pemateri");
   const jurnalEl = document.getElementById("presensi-jurnal");
@@ -589,7 +599,7 @@ async function submitPresensi() {
   }
 }
 
-// 5. RENDER REKAPITULASI JURNAL TIAP KELAS (SCROLLABLE)
+// 5. RENDER REKAPITULASI JURNAL TIAP KELAS
 function renderJurnalRekap() {
   const container = document.getElementById("jurnal-cards-wrapper");
   if (!container) return;
@@ -612,7 +622,6 @@ function renderJurnalRekap() {
   ];
 
   container.innerHTML = classConfigs.map(cfg => {
-    // Kelompokkan data jurnal berdasarkan Tanggal unik untuk kelas ini
     let journalsByDate = {};
 
     presensiList.forEach(p => {
@@ -673,7 +682,7 @@ function renderJurnalRekap() {
   }).join("");
 }
 
-// 6. RENDER SELURUH GRAFIK REKAPITULASI
+// 6. RENDER SELURUH GRAFIK REKAPITULASI (DENGAN ANTI-DUPLIKAT)
 function onChartFilterChange() {
   renderAllCharts();
 }
@@ -743,8 +752,11 @@ function renderSingleChart(canvasId, selectedKelompok, selectedKelas) {
   let dailyDataMap = {};
   const presensiList = Array.isArray(appData.presensi) ? appData.presensi : [];
 
+  // FILTER LOGIKA ANTI-DUPLIKAT: Menyaring hanya 1 entri unik per jamaah per tanggal
+  let uniquePresensiMap = {};
+
   presensiList.forEach(p => {
-    if (!p.Tanggal) return;
+    if (!p.Tanggal || !p.NamaJamaah) return;
 
     const pKel = String(p.Kelompok || "Caberawit").trim().toLowerCase();
     const pKls = String(p.Kelas || "Umum").trim().toLowerCase();
@@ -769,11 +781,20 @@ function renderSingleChart(canvasId, selectedKelompok, selectedKelas) {
 
     if (!rawDateStr || rawDateStr.length < 10) return;
 
+    const uniqueKey = `${rawDateStr}_${String(p.NamaJamaah).trim().toLowerCase()}`;
+    uniquePresensiMap[uniqueKey] = {
+      tanggal: rawDateStr,
+      status: String(p.StatusPresensi || "Hadir").trim()
+    };
+  });
+
+  Object.values(uniquePresensiMap).forEach(p => {
+    const rawDateStr = p.tanggal;
     if (!dailyDataMap[rawDateStr]) {
       dailyDataMap[rawDateStr] = { Hadir: 0, Izin: 0, Alfa: 0 };
     }
 
-    const st = String(p.StatusPresensi || "").trim();
+    const st = p.status;
     if (st === "Hadir") dailyDataMap[rawDateStr].Hadir++;
     else if (st === "Izin") dailyDataMap[rawDateStr].Izin++;
     else if (st === "Alfa") dailyDataMap[rawDateStr].Alfa++;
@@ -879,7 +900,8 @@ function renderSingleChart(canvasId, selectedKelompok, selectedKelas) {
       scales: {
         y: {
           beginAtZero: true,
-          suggestedMax: 115,
+          suggestedMax: 100,
+          max: 100,
           title: { display: true, text: "Persentase Kehadiran (%)", font: { size: 10 } },
           ticks: { stepSize: 20, callback: function(val) { return val <= 100 ? val + "%" : ""; } }
         },
@@ -928,7 +950,6 @@ function openFormKegiatan() {
     `;
   }
   
-  // Atur tanggal default ke hari ini & isi nilai Hari secara otomatis saat form terbuka
   const today = new Date();
   const year = today.getFullYear();
   const month = String(today.getMonth() + 1).padStart(2, '0');
@@ -958,6 +979,7 @@ function updateModalHari() {
     hariInput.value = days[d.getDay()];
   }
 }
+
 function openFormPengurus() {
   activeFormType = "Pengurus";
   const titleEl = document.getElementById("modal-form-title");
@@ -1174,6 +1196,10 @@ async function handleLogin(e) {
     const json = await res.json();
     if (json.success) {
       currentAdmin = { nama: json.admin.nama, role: json.admin.role, pin: pin };
+      
+      // Simpan sesi ke sessionStorage agar tahan saat refresh
+      sessionStorage.setItem("currentAdmin", JSON.stringify(currentAdmin));
+      
       updateAdminUI();
       closeModal("modal-login");
       showMessage(`Selamat datang, ${currentAdmin.nama}!`, "success");
@@ -1187,6 +1213,7 @@ async function handleLogin(e) {
 
 function logoutAdmin() {
   currentAdmin = null;
+  sessionStorage.removeItem("currentAdmin");
   updateAdminUI();
   showMessage("Anda telah logout dari mode Admin.", "info");
 }
