@@ -1,8 +1,9 @@
 // ==========================================
-// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (FIXED ADMIN PERMISSION & PERSISTENT SESSION)
+// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH
 // ==========================================
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw4wxEgmJwItL36_2NmgamfJKUXU14DDwfKCxDuclGq62GF8lz94MP7R9qjw7ENIj77Ow/exec";
+// ⚠️ PASTIskan URL DI BAWAH INI ADALAH WEB APP URL HASIL NEW DEPLOYMENT ANDA
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwDR7_Monit5T0MOc0R7w8VBwNG2_cUpBO9HM0c6rV8KY1p0hJT0kBu1su333AGLCp79Q/exec";
 
 let appData = {
   pengurus: [],
@@ -25,7 +26,7 @@ if (typeof ChartDataLabels !== 'undefined') {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // 1. Cek & Pulihkan Sesi Admin dari sessionStorage (agar tidak logout saat refresh)
+  // Pulihkan sesi Admin jika halaman di-refresh
   const savedAdmin = sessionStorage.getItem("currentAdmin");
   if (savedAdmin) {
     try {
@@ -37,10 +38,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   setDefaultDate();
   loadAllData();
-  
-  // 2. Wajib Panggil updateAdminUI di awal agar elemen khusus admin tersembunyi untuk publik
   updateAdminUI();
-  
   switchTab("beranda");
 });
 
@@ -87,6 +85,7 @@ async function loadAllData() {
       showMessage("Gagal memuat data: " + (json.error || json.message), "error");
     }
   } catch (err) {
+    console.error("CORS / Network Error:", err);
     showMessage("Gagal terhubung ke Google Apps Script.", "error");
   }
 }
@@ -209,7 +208,6 @@ function calculateAge(dobString) {
   return Math.abs(ageDate.getUTCFullYear() - 1970) + " Thn";
 }
 
-// 0. RENDER BERANDA AGENDA KEGIATAN
 function renderBerandaKegiatan() {
   const container = document.getElementById("kegiatan-cards-container");
   if (!container) return;
@@ -243,7 +241,6 @@ function renderBerandaKegiatan() {
             ${k.Keterangan || 'Tidak ada catatan tambahan.'}
           </p>
         </div>
-        <!-- TOMBOL HAPUS HANYA MUNCUL JIKA ADMIN KELIHATAN -->
         <div class="admin-only ${currentAdmin ? '' : 'hidden'} flex justify-end pt-2 border-t border-slate-100">
           <button onclick="deleteRow('Kegiatan', '${k.ID}')" class="text-rose-600 hover:text-rose-800 text-xs font-semibold flex items-center gap-1 p-1">
             <i class="fa-solid fa-trash"></i> Hapus Agenda
@@ -344,7 +341,6 @@ function renderPresensiTable() {
   const jurnalEl = document.getElementById("presensi-jurnal");
   const kendalaEl = document.getElementById("presensi-kendala");
 
-  // ATUR AKSES INPUT TEKS: Kunci (disabled) jika BUKAN Admin
   const isReadOnly = !currentAdmin;
   [jenisKegiatanEl, pemateriEl, jurnalEl, kendalaEl].forEach(el => {
     if (el) {
@@ -406,10 +402,10 @@ function renderPresensiTable() {
           keterangan: String(p.Keterangan || "").trim()
         };
 
-        if (p.JenisKegiatan) savedJenisKegiatan = p.JenisKegiatan;
-        if (p.Pemateri) savedPemateri = p.Pemateri;
-        if (p.Jurnal) savedJurnal = p.Jurnal;
-        if (p.Kendala) savedKendala = p.Kendala;
+        if (p.JenisKegiatan || p.jenisKegiatan) savedJenisKegiatan = p.JenisKegiatan || p.jenisKegiatan;
+        if (p.Pemateri || p.pemateri) savedPemateri = p.Pemateri || p.pemateri;
+        if (p.Jurnal || p.jurnal) savedJurnal = p.Jurnal || p.jurnal;
+        if (p.Kendala || p.kendala) savedKendala = p.Kendala || p.kendala;
       }
     });
 
@@ -581,7 +577,8 @@ async function submitPresensi() {
       jenisKegiatan: jenisKegiatan,
       pemateri: pemateri,
       jurnal: jurnal,
-      kendala: kendala
+      kendala: kendala,
+      admin: currentAdmin ? currentAdmin.nama : "Admin"
     });
   });
 
@@ -593,7 +590,7 @@ async function submitPresensi() {
     });
     const json = await res.json();
     if (json.success) {
-      showMessage("Presensi dan jurnal berhasil disimpan!", "success");
+      showMessage(`Presensi berhasil diperbarui oleh ${currentAdmin.nama}!`, "success");
       await loadAllData();
     } else {
       showMessage("Gagal menyimpan: " + json.error, "error");
@@ -603,8 +600,6 @@ async function submitPresensi() {
   }
 }
 
-// 5. RENDER REKAPITULASI JURNAL TIAP KELAS (SCROLLABLE & SAFELY PARSED)
-// 5. RENDER REKAPITULASI JURNAL TIAP KELAS (DENGAN STATISTIK HADIR, IZIN, ALFA)
 function renderJurnalRekap() {
   const container = document.getElementById("jurnal-cards-wrapper");
   if (!container) return;
@@ -641,7 +636,6 @@ function renderJurnalRekap() {
       if (matchKel && matchKls && p.Tanggal && p.NamaJamaah) {
         let pDateStr = (p.Tanggal instanceof Date) ? p.Tanggal.toISOString().split("T")[0] : String(p.Tanggal).split("T")[0].trim();
 
-        // Hitung Hari Otomatis jika p.Hari kosong
         let computedHari = p.Hari || p.hari;
         if (!computedHari) {
           const d = new Date(pDateStr + "T00:00:00");
@@ -656,6 +650,7 @@ function renderJurnalRekap() {
         const valPemateri = p.Pemateri || p.pemateri || '-';
         const valJurnal = p.Jurnal || p.jurnal || '-';
         const valKendala = p.Kendala || p.kendala || '-';
+        const valAdmin = p.Admin || p.admin || 'Admin';
         const valStatus = String(p.StatusPresensi || "Hadir").trim();
 
         if (!journalsByDate[pDateStr]) {
@@ -666,17 +661,17 @@ function renderJurnalRekap() {
             pemateri: valPemateri,
             jurnal: valJurnal,
             kendala: valKendala,
+            admin: valAdmin,
             jamaahMap: {}
           };
         } else {
-          // Update data jurnal jika ditemukan record yang terisi
           if (valJurnal !== '-') journalsByDate[pDateStr].jurnal = valJurnal;
           if (valPemateri !== '-') journalsByDate[pDateStr].pemateri = valPemateri;
           if (valKendala !== '-') journalsByDate[pDateStr].kendala = valKendala;
           if (valJenis !== 'Pengajian Rutin') journalsByDate[pDateStr].jenisKegiatan = valJenis;
+          if (valAdmin !== 'Admin') journalsByDate[pDateStr].admin = valAdmin;
         }
 
-        // Catat status jamaah unik per tanggal (anti duplikat hitungan)
         journalsByDate[pDateStr].jamaahMap[String(p.NamaJamaah).trim().toLowerCase()] = valStatus;
       }
     });
@@ -699,7 +694,6 @@ function renderJurnalRekap() {
         ` : `
           <div class="space-y-3 max-h-80 overflow-y-auto pr-1">
             ${datesList.map(j => {
-              // Hitung statistik Hadir, Izin, Alfa untuk tanggal ini
               let h = 0, i = 0, a = 0;
               Object.values(j.jamaahMap).forEach(st => {
                 if (st === "Hadir") h++;
@@ -718,7 +712,6 @@ function renderJurnalRekap() {
                     </span>
                   </div>
 
-                  <!-- BADGE JUMLAH PRESENSI (HADIR, IZIN, ALFA) -->
                   <div class="flex items-center gap-2 my-1">
                     <span class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-bold border border-emerald-200">
                       <i class="fa-solid fa-user-check mr-1"></i> Hadir: ${h}
@@ -734,6 +727,7 @@ function renderJurnalRekap() {
                   <p><b class="text-slate-700">Pemateri:</b> ${j.pemateri}</p>
                   <p><b class="text-slate-700">Capaian Jurnal:</b> ${j.jurnal}</p>
                   <p class="text-slate-500"><b class="text-slate-700">Kendala KBM:</b> ${j.kendala}</p>
+                  <p class="text-slate-400 text-[10px] text-right pt-1"><i class="fa-solid fa-user-pen mr-1"></i> <b>Dicatat oleh:</b> ${j.admin}</p>
                 </div>
               `;
             }).join("")}
@@ -744,7 +738,6 @@ function renderJurnalRekap() {
   }).join("");
 }
 
-// 6. RENDER SELURUH GRAFIK REKAPITULASI (ANTI-DUPLIKAT JAMAAH)
 function onChartFilterChange() {
   renderAllCharts();
 }
@@ -814,7 +807,6 @@ function renderSingleChart(canvasId, selectedKelompok, selectedKelas) {
   let dailyDataMap = {};
   const presensiList = Array.isArray(appData.presensi) ? appData.presensi : [];
 
-  // SANITASI & ANTI-DUPLIKAT JAMAAH
   let uniquePresensiMap = {};
 
   presensiList.forEach(p => {
@@ -1259,7 +1251,7 @@ async function handleLogin(e) {
     if (json.success) {
       currentAdmin = { nama: json.admin.nama, role: json.admin.role, pin: pin };
       
-      // Simpan sesi ke sessionStorage agar tahan saat refresh
+      // Simpan sesi ke sessionStorage
       sessionStorage.setItem("currentAdmin", JSON.stringify(currentAdmin));
       
       updateAdminUI();
