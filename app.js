@@ -603,7 +603,7 @@ async function submitPresensi() {
   }
 }
 
-// 5. RENDER REKAPITULASI JURNAL TIAP KELAS
+// 5. RENDER REKAPITULASI JURNAL TIAP KELAS (SCROLLABLE & SAFELY PARSED)
 function renderJurnalRekap() {
   const container = document.getElementById("jurnal-cards-wrapper");
   if (!container) return;
@@ -625,6 +625,8 @@ function renderJurnalRekap() {
     { kelompok: "Ibu-Ibu", kelas: "Umum", title: "Ibu-Ibu" }
   ];
 
+  const daysName = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+
   container.innerHTML = classConfigs.map(cfg => {
     let journalsByDate = {};
 
@@ -638,20 +640,38 @@ function renderJurnalRekap() {
       if (matchKel && matchKls && p.Tanggal) {
         let pDateStr = (p.Tanggal instanceof Date) ? p.Tanggal.toISOString().split("T")[0] : String(p.Tanggal).split("T")[0].trim();
 
-        if (!journalsByDate[pDateStr]) {
+        // Hitung Hari Otomatis jika p.Hari tidak terdefinisi
+        let computedHari = p.Hari || p.hari;
+        if (!computedHari) {
+          const d = new Date(pDateStr + "T00:00:00");
+          if (!isNaN(d.getTime())) {
+            computedHari = daysName[d.getDay()];
+          } else {
+            computedHari = "-";
+          }
+        }
+
+        // Membaca nilai dari Google Sheets dengan toleransi Kapital / Kecil
+        const valJenis = p.JenisKegiatan || p.jenisKegiatan || 'Pengajian Rutin';
+        const valPemateri = p.Pemateri || p.pemateri || '-';
+        const valJurnal = p.Jurnal || p.jurnal || '-';
+        const valKendala = p.Kendala || p.kendala || '-';
+
+        // Simpan data unik per tanggal jika setidaknya salah satu jurnal terisi
+        if (!journalsByDate[pDateStr] || valJurnal !== '-' || valPemateri !== '-') {
           journalsByDate[pDateStr] = {
             tanggal: pDateStr,
-            hari: p.Hari || '',
-            jenisKegiatan: p.JenisKegiatan || '-',
-            pemateri: p.Pemateri || '-',
-            jurnal: p.Jurnal || '-',
-            kendala: p.Kendala || '-'
+            hari: computedHari,
+            jenisKegiatan: valJenis,
+            pemateri: valPemateri,
+            jurnal: valJurnal,
+            kendala: valKendala
           };
         }
       }
     });
 
-    const datesList = Object.values(journalsByDate).sort((a,b) => b.tanggal.localeCompare(a.tanggal));
+    const datesList = Object.values(journalsByDate).sort((a, b) => b.tanggal.localeCompare(a.tanggal));
 
     return `
       <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
@@ -671,7 +691,7 @@ function renderJurnalRekap() {
             ${datesList.map(j => `
               <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs space-y-1.5">
                 <div class="flex justify-between items-center text-slate-700 font-bold border-b border-slate-200/60 pb-1.5 mb-1.5">
-                  <span class="text-teal-800"><i class="fa-solid fa-calendar-day mr-1"></i> ${j.Hari}, ${j.tanggal}</span>
+                  <span class="text-teal-800"><i class="fa-solid fa-calendar-day mr-1"></i> ${j.hari}, ${j.tanggal}</span>
                   <span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-[10px]">${j.jenisKegiatan}</span>
                 </div>
                 <p><b class="text-slate-700">Pemateri:</b> ${j.pemateri}</p>
