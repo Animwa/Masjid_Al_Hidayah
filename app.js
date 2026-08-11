@@ -1,8 +1,7 @@
 // ==========================================
-// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH
+// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (FINAL REFINED VERSION)
 // ==========================================
 
-// ⚠️ PASTIskan URL DI BAWAH INI ADALAH WEB APP URL HASIL NEW DEPLOYMENT ANDA
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwDR7_Monit5T0MOc0R7w8VBwNG2_cUpBO9HM0c6rV8KY1p0hJT0kBu1su333AGLCp79Q/exec";
 
 let appData = {
@@ -26,7 +25,7 @@ if (typeof ChartDataLabels !== 'undefined') {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // Pulihkan sesi Admin jika halaman di-refresh
+  // Pulihkan sesi Admin dari sessionStorage jika ada
   const savedAdmin = sessionStorage.getItem("currentAdmin");
   if (savedAdmin) {
     try {
@@ -148,6 +147,7 @@ function selectKelompok(kelompok) {
   document.querySelectorAll(".subnav-btn").forEach(b => b.classList.remove("active"));
   
   const idMap = {
+    "ASAD": "sub-asad",
     "Caberawit": "sub-caberawit",
     "Pra Remaja": "sub-pra-remaja",
     "Remaja": "sub-remaja",
@@ -162,7 +162,21 @@ function selectKelompok(kelompok) {
   const classnav = document.getElementById("classnav-container");
   const classBtnContainer = document.getElementById("class-buttons");
 
-  if (kelompok === "Caberawit") {
+  if (kelompok === "ASAD") {
+    const classes = ["Caberawit Laki-Laki", "Caberawit Perempuan", "Laki-Laki", "Perempuan"];
+    if (classnav) classnav.classList.remove("hidden");
+    if (classBtnContainer) {
+      classBtnContainer.innerHTML = "";
+      classes.forEach((cls, idx) => {
+        const btn = document.createElement("button");
+        btn.className = `classnav-btn px-3 py-1 rounded-md bg-white border border-slate-300 hover:bg-teal-50 text-xs shrink-0 ${idx === 0 ? 'active' : ''}`;
+        btn.innerText = cls;
+        btn.onclick = () => selectKelas(cls, btn);
+        classBtnContainer.appendChild(btn);
+      });
+    }
+    selectKelas("Caberawit Laki-Laki");
+  } else if (kelompok === "Caberawit") {
     const classes = ["PAUD", "Tilawati 1", "Tilawati 2", "Tilawati 3", "Tilawati 4", "Tilawati 5", "Al-Qur'an"];
     if (classnav) classnav.classList.remove("hidden");
     if (classBtnContainer) {
@@ -190,7 +204,7 @@ function selectKelas(kelas, btnEl) {
   }
   const titleEl = document.getElementById("presensi-class-title");
   if (titleEl) {
-    if (currentKelompok === "Caberawit") {
+    if (currentKelompok === "Caberawit" || currentKelompok === "ASAD") {
       titleEl.innerText = `Presensi: ${currentKelompok} (${currentKelas})`;
     } else {
       titleEl.innerText = `Presensi: ${currentKelompok}`;
@@ -321,8 +335,26 @@ function renderPresensiTable() {
 
   const filteredJamaah = jamaahList.filter(j => {
     const matchStatus = String(j.Status || "Aktif").trim().toLowerCase() === "aktif";
+    const jKelompok = String(j.Kelompok || "").trim();
+    const jGender = String(j.Gender || "").trim().toLowerCase();
+
+    // FILTER KELOMPOK ASAD
+    if (currentKelompok === "ASAD") {
+      if (currentKelas === "Caberawit Laki-Laki") {
+        return matchStatus && jKelompok === "Caberawit" && jGender === "laki-laki";
+      } else if (currentKelas === "Caberawit Perempuan") {
+        return matchStatus && jKelompok === "Caberawit" && jGender === "perempuan";
+      } else if (currentKelas === "Laki-Laki") {
+        const isAdultGroup = ["Pra Remaja", "Remaja", "Muda-Mudi", "Bapak-Bapak"].includes(jKelompok);
+        return matchStatus && isAdultGroup && jGender === "laki-laki";
+      } else if (currentKelas === "Perempuan") {
+        const isAdultGroup = ["Pra Remaja", "Remaja", "Muda-Mudi", "Ibu-Ibu"].includes(jKelompok);
+        return matchStatus && isAdultGroup && jGender === "perempuan";
+      }
+    }
+
+    // FILTER REGULER
     const matchKelompok = String(j.Kelompok || "Caberawit").trim().toLowerCase() === String(currentKelompok).trim().toLowerCase();
-    
     let matchKelas = true;
     if (currentKelompok === "Caberawit") {
       matchKelas = String(j.Kelas || "").trim().toLowerCase() === String(currentKelas).trim().toLowerCase();
@@ -334,7 +366,7 @@ function renderPresensiTable() {
   const tbody = document.getElementById("table-presensi-body");
   if (!tbody) return;
 
-  const displayTitle = (currentKelompok === "Caberawit") ? `${currentKelompok} (${currentKelas})` : currentKelompok;
+  const displayTitle = (currentKelompok === "Caberawit" || currentKelompok === "ASAD") ? `${currentKelompok} (${currentKelas})` : currentKelompok;
 
   const jenisKegiatanEl = document.getElementById("presensi-jenis-kegiatan");
   const pemateriEl = document.getElementById("presensi-pemateri");
@@ -358,7 +390,7 @@ function renderPresensiTable() {
   if (filteredJamaah.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="5" class="px-4 py-6 text-center text-slate-400 italic">
+        <td colspan="6" class="px-4 py-6 text-center text-slate-400 italic">
           Belum ada jamaah yang terdaftar di kelompok <b>${displayTitle}</b>.<br>
           <span class="text-xs text-slate-500">Buka menu <b>Data Jamaah</b> untuk menambahkan jamaah.</span>
         </td>
@@ -394,7 +426,7 @@ function renderPresensiTable() {
         pDateStr = String(p.Tanggal).split("T")[0].trim();
       }
 
-      const checkKelas = (currentKelompok === "Caberawit") ? (pKls === String(currentKelas).trim().toLowerCase()) : true;
+      const checkKelas = (currentKelompok === "Caberawit" || currentKelompok === "ASAD") ? (pKls === String(currentKelas).trim().toLowerCase()) : true;
 
       if (pKel === String(currentKelompok).trim().toLowerCase() && checkKelas && pDateStr === targetDate) {
         existingStatusMap[String(p.NamaJamaah).trim().toLowerCase()] = {
@@ -427,6 +459,7 @@ function renderPresensiTable() {
 
       return `
         <tr class="bg-white border-b hover:bg-slate-50">
+          <td class="px-3 py-3 text-center text-xs font-semibold text-slate-500">${idx + 1}</td>
           <td class="px-4 py-3 font-medium text-slate-800">
             ${j.Nama}
             ${existingStatusMap[namaKey] ? `<span class="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold border border-emerald-200">Tersimpan</span>` : ''}
@@ -500,7 +533,7 @@ function updateRekapHarian() {
       pDateStr = String(p.Tanggal).split("T")[0].trim();
     }
 
-    const checkKelas = (currentKelompok === "Caberawit") ? (pKls === pKlsTarget) : true;
+    const checkKelas = (currentKelompok === "Caberawit" || currentKelompok === "ASAD") ? (pKls === pKlsTarget) : true;
 
     if (pKel === pKelTarget && checkKelas && pDateStr === targetDate) {
       const uniqueKey = String(p.NamaJamaah).trim().toLowerCase();
@@ -519,7 +552,7 @@ function updateRekapHarian() {
   if (document.getElementById("stat-alfa")) document.getElementById("stat-alfa").innerText = a;
   
   if (document.getElementById("rekap-mingguan-title")) {
-    const displayTitle = (currentKelompok === "Caberawit") ? `${currentKelompok} (${currentKelas})` : currentKelompok;
+    const displayTitle = (currentKelompok === "Caberawit" || currentKelompok === "ASAD") ? `${currentKelompok} (${currentKelas})` : currentKelompok;
     document.getElementById("rekap-mingguan-title").innerHTML = `<i class="fa-solid fa-calendar-day mr-2"></i> Rekapan Presensi Hari Ini (${targetDate}): ${displayTitle}`;
   }
 }
@@ -543,8 +576,24 @@ async function submitPresensi() {
 
   const filteredJamaah = jamaahList.filter(j => {
     const matchStatus = String(j.Status || "Aktif").trim().toLowerCase() === "aktif";
+    const jKelompok = String(j.Kelompok || "").trim();
+    const jGender = String(j.Gender || "").trim().toLowerCase();
+
+    if (currentKelompok === "ASAD") {
+      if (currentKelas === "Caberawit Laki-Laki") {
+        return matchStatus && jKelompok === "Caberawit" && jGender === "laki-laki";
+      } else if (currentKelas === "Caberawit Perempuan") {
+        return matchStatus && jKelompok === "Caberawit" && jGender === "perempuan";
+      } else if (currentKelas === "Laki-Laki") {
+        const isAdultGroup = ["Pra Remaja", "Remaja", "Muda-Mudi", "Bapak-Bapak"].includes(jKelompok);
+        return matchStatus && isAdultGroup && jGender === "laki-laki";
+      } else if (currentKelas === "Perempuan") {
+        const isAdultGroup = ["Pra Remaja", "Remaja", "Muda-Mudi", "Ibu-Ibu"].includes(jKelompok);
+        return matchStatus && isAdultGroup && jGender === "perempuan";
+      }
+    }
+
     const matchKelompok = String(j.Kelompok || "Caberawit").trim().toLowerCase() === String(currentKelompok).trim().toLowerCase();
-    
     let matchKelas = true;
     if (currentKelompok === "Caberawit") {
       matchKelas = String(j.Kelas || "").trim().toLowerCase() === String(currentKelas).trim().toLowerCase();
@@ -568,7 +617,7 @@ async function submitPresensi() {
 
     records.push({
       kelompok: currentKelompok,
-      kelas: (currentKelompok === "Caberawit") ? currentKelas : "Umum",
+      kelas: (currentKelompok === "Caberawit" || currentKelompok === "ASAD") ? currentKelas : "Umum",
       tanggal: date,
       hari: day,
       nama: j.Nama,
@@ -607,6 +656,10 @@ function renderJurnalRekap() {
   const presensiList = Array.isArray(appData.presensi) ? appData.presensi : [];
 
   const classConfigs = [
+    { kelompok: "ASAD", kelas: "Caberawit Laki-Laki", title: "ASAD - Caberawit Laki-Laki" },
+    { kelompok: "ASAD", kelas: "Caberawit Perempuan", title: "ASAD - Caberawit Perempuan" },
+    { kelompok: "ASAD", kelas: "Laki-Laki", title: "ASAD - Laki-Laki (Pra Remaja - Bapak)" },
+    { kelompok: "ASAD", kelas: "Perempuan", title: "ASAD - Perempuan (Pra Remaja - Ibu)" },
     { kelompok: "Caberawit", kelas: "PAUD", title: "Caberawit - PAUD" },
     { kelompok: "Caberawit", kelas: "Tilawati 1", title: "Caberawit - Tilawati 1" },
     { kelompok: "Caberawit", kelas: "Tilawati 2", title: "Caberawit - Tilawati 2" },
@@ -631,7 +684,7 @@ function renderJurnalRekap() {
       const pKls = String(p.Kelas || "Umum").trim().toLowerCase();
 
       const matchKel = pKel === String(cfg.kelompok).trim().toLowerCase();
-      const matchKls = (cfg.kelompok === "Caberawit") ? (pKls === String(cfg.kelas).trim().toLowerCase()) : true;
+      const matchKls = (cfg.kelompok === "Caberawit" || cfg.kelompok === "ASAD") ? (pKls === String(cfg.kelas).trim().toLowerCase()) : true;
 
       if (matchKel && matchKls && p.Tanggal && p.NamaJamaah) {
         let pDateStr = (p.Tanggal instanceof Date) ? p.Tanggal.toISOString().split("T")[0] : String(p.Tanggal).split("T")[0].trim();
@@ -747,6 +800,10 @@ function renderAllCharts() {
   if (!container) return;
 
   const chartConfigs = [
+    { kelompok: "ASAD", kelas: "Caberawit Laki-Laki", title: "ASAD - Caberawit Laki-Laki" },
+    { kelompok: "ASAD", kelas: "Caberawit Perempuan", title: "ASAD - Caberawit Perempuan" },
+    { kelompok: "ASAD", kelas: "Laki-Laki", title: "ASAD - Laki-Laki" },
+    { kelompok: "ASAD", kelas: "Perempuan", title: "ASAD - Perempuan" },
     { kelompok: "Caberawit", kelas: "PAUD", title: "Caberawit - PAUD" },
     { kelompok: "Caberawit", kelas: "Tilawati 1", title: "Caberawit - Tilawati 1" },
     { kelompok: "Caberawit", kelas: "Tilawati 2", title: "Caberawit - Tilawati 2" },
@@ -794,6 +851,23 @@ function renderSingleChart(canvasId, selectedKelompok, selectedKelas) {
   const jamaahList = Array.isArray(appData.jamaah) ? appData.jamaah : [];
   const totalJamaahAktifList = jamaahList.filter(j => {
     const matchStatus = String(j.Status || "Aktif").trim().toLowerCase() === "aktif";
+    const jKelompok = String(j.Kelompok || "").trim();
+    const jGender = String(j.Gender || "").trim().toLowerCase();
+
+    if (selectedKelompok === "ASAD") {
+      if (selectedKelas === "Caberawit Laki-Laki") {
+        return matchStatus && jKelompok === "Caberawit" && jGender === "laki-laki";
+      } else if (selectedKelas === "Caberawit Perempuan") {
+        return matchStatus && jKelompok === "Caberawit" && jGender === "perempuan";
+      } else if (selectedKelas === "Laki-Laki") {
+        const isAdultGroup = ["Pra Remaja", "Remaja", "Muda-Mudi", "Bapak-Bapak"].includes(jKelompok);
+        return matchStatus && isAdultGroup && jGender === "laki-laki";
+      } else if (selectedKelas === "Perempuan") {
+        const isAdultGroup = ["Pra Remaja", "Remaja", "Muda-Mudi", "Ibu-Ibu"].includes(jKelompok);
+        return matchStatus && isAdultGroup && jGender === "perempuan";
+      }
+    }
+
     const matchKelompok = String(j.Kelompok || "Caberawit").trim().toLowerCase() === String(selectedKelompok).trim().toLowerCase();
     let matchKelas = true;
     if (selectedKelompok === "Caberawit") {
@@ -815,7 +889,7 @@ function renderSingleChart(canvasId, selectedKelompok, selectedKelas) {
     const pKel = String(p.Kelompok || "Caberawit").trim().toLowerCase();
     const pKls = String(p.Kelas || "Umum").trim().toLowerCase();
     
-    const checkKelas = (selectedKelompok === "Caberawit") ? (pKls === String(selectedKelas).trim().toLowerCase()) : true;
+    const checkKelas = (selectedKelompok === "Caberawit" || selectedKelompok === "ASAD") ? (pKls === String(selectedKelas).trim().toLowerCase()) : true;
 
     if (pKel !== String(selectedKelompok).trim().toLowerCase() || !checkKelas) {
       return;
