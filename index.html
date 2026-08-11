@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Sistem Informasi Masjid Al Hidayah</title>
+  <title>Masjid Al Hidayah</title>
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -88,11 +88,12 @@
     </div>
   </nav>
 
-  <!-- SUB NAV KELOMPOK USIA -->
+  <!-- SUB NAV KELOMPOK USIA (TERMASUK TOMBOL ASAD) -->
   <div id="subnav-container" class="bg-slate-200 border-b border-slate-300 hidden">
     <div class="max-w-7xl mx-auto px-3 py-2 flex items-center space-x-2 text-xs font-semibold overflow-x-auto no-scrollbar">
       <span class="text-slate-600 shrink-0 font-bold flex items-center text-[11px] uppercase tracking-wider"><i class="fa-solid fa-layer-group mr-1 text-emerald-700"></i> Kelompok:</span>
       <div class="flex space-x-1.5 shrink-0">
+        <button onclick="selectKelompok('ASAD')" class="subnav-btn px-3 py-1.5 rounded-full bg-white shadow-sm border border-slate-300 hover:bg-emerald-50 transition-all" id="sub-asad">ASAD</button>
         <button onclick="selectKelompok('Caberawit')" class="subnav-btn px-3 py-1.5 rounded-full bg-white shadow-sm border border-slate-300 hover:bg-emerald-50 transition-all" id="sub-caberawit">Caberawit (SD)</button>
         <button onclick="selectKelompok('Pra Remaja')" class="subnav-btn px-3 py-1.5 rounded-full bg-white shadow-sm border border-slate-300 hover:bg-emerald-50 transition-all" id="sub-pra-remaja">Pra Remaja (SMP)</button>
         <button onclick="selectKelompok('Remaja')" class="subnav-btn px-3 py-1.5 rounded-full bg-white shadow-sm border border-slate-300 hover:bg-emerald-50 transition-all" id="sub-remaja">Remaja (SMA)</button>
@@ -103,7 +104,7 @@
     </div>
   </div>
 
-  <!-- SUB NAV KELAS CABERAWIT -->
+  <!-- SUB NAV KELAS CABERAWIT & ASAD -->
   <div id="classnav-container" class="bg-slate-100 border-b border-slate-200 hidden w-full overflow-hidden">
     <div class="max-w-7xl mx-auto px-3 py-2 flex items-center space-x-2 text-xs">
       <span class="text-slate-500 shrink-0 font-semibold text-[11px]"><i class="fa-solid fa-graduation-cap text-teal-700 mr-1"></i> Tingkat/Kelas:</span>
@@ -269,10 +270,12 @@
           </div>
         </div>
 
+        <!-- TABEL PRESENSI TERMASUK KOLOM NO (#) -->
         <div class="overflow-x-auto">
           <table class="w-full text-sm text-left text-slate-600">
             <thead class="text-xs text-slate-700 uppercase bg-slate-100">
               <tr>
+                <th scope="col" class="px-3 py-3 text-center w-12">NO</th>
                 <th scope="col" class="px-4 py-3">NAMA JAMAAH</th>
                 <th scope="col" class="px-3 py-3 text-center w-16">HADIR</th>
                 <th scope="col" class="px-3 py-3 text-center w-16">IZIN</th>
