@@ -348,11 +348,11 @@ if (currentKelompok === "ASAD") {
   } else if (currentKelas === "Caberawit Perempuan") {
     return matchStatus && jKelompokClean === "caberawit" && (jGenderClean === "perempuan" || jGenderClean === "p");
   } else if (currentKelas === "Laki-Laki") {
-    const isAdultGroup = ["praremaja", "remaja", "mudamudi", "bapak-bapak", "bapakbapak"].includes(jKelompokClean);
+    const isAdultGroup = ["praremaja", "remaja", "Muda-Mudi", "bapak-bapak", "bapakbapak"].includes(jKelompokClean);
     return matchStatus && isAdultGroup && (jGenderClean === "laki-laki" || jGenderClean === "l");
   } else if (currentKelas === "Perempuan") {
     // Memastikan Ibu-Ibu terbaca dengan aman
-    const isAdultGroup = ["praremaja", "remaja", "mudamudi", "ibu-ibu", "ibuibu"].includes(jKelompokClean);
+    const isAdultGroup = ["praremaja", "remaja", "Muda-Mudi", "ibu-ibu", "ibuibu"].includes(jKelompokClean);
     return matchStatus && isAdultGroup && (jGenderClean === "perempuan" || jGenderClean === "p");
   }
 }
