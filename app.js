@@ -339,19 +339,23 @@ function renderPresensiTable() {
     const jGender = String(j.Gender || "").trim().toLowerCase();
 
     // FILTER KELOMPOK ASAD
-    if (currentKelompok === "ASAD") {
-      if (currentKelas === "Caberawit Laki-Laki") {
-        return matchStatus && jKelompok === "Caberawit" && jGender === "laki-laki";
-      } else if (currentKelas === "Caberawit Perempuan") {
-        return matchStatus && jKelompok === "Caberawit" && jGender === "perempuan";
-      } else if (currentKelas === "Laki-Laki") {
-        const isAdultGroup = ["Pra Remaja", "Remaja", "Muda-Mudi", "Bapak-Bapak"].includes(jKelompok);
-        return matchStatus && isAdultGroup && jGender === "laki-laki";
-      } else if (currentKelas === "Perempuan") {
-        const isAdultGroup = ["Pra Remaja", "Remaja", "Muda-Mudi", "Ibu-Ibu"].includes(jKelompok);
-        return matchStatus && isAdultGroup && jGender === "perempuan";
-      }
-    }
+if (currentKelompok === "ASAD") {
+  const jKelompokClean = jKelompok.toLowerCase().replace(/\s+/g, ''); // Mengabaikan spasi & kapital
+  const jGenderClean = jGender.toLowerCase().trim();
+
+  if (currentKelas === "Caberawit Laki-Laki") {
+    return matchStatus && jKelompokClean === "caberawit" && (jGenderClean === "laki-laki" || jGenderClean === "l");
+  } else if (currentKelas === "Caberawit Perempuan") {
+    return matchStatus && jKelompokClean === "caberawit" && (jGenderClean === "perempuan" || jGenderClean === "p");
+  } else if (currentKelas === "Laki-Laki") {
+    const isAdultGroup = ["praremaja", "remaja", "mudamudi", "bapak-bapak", "bapakbapak"].includes(jKelompokClean);
+    return matchStatus && isAdultGroup && (jGenderClean === "laki-laki" || jGenderClean === "l");
+  } else if (currentKelas === "Perempuan") {
+    // Memastikan Ibu-Ibu terbaca dengan aman
+    const isAdultGroup = ["praremaja", "remaja", "mudamudi", "ibu-ibu", "ibuibu"].includes(jKelompokClean);
+    return matchStatus && isAdultGroup && (jGenderClean === "perempuan" || jGenderClean === "p");
+  }
+}
 
     // FILTER REGULER
     const matchKelompok = String(j.Kelompok || "Caberawit").trim().toLowerCase() === String(currentKelompok).trim().toLowerCase();
