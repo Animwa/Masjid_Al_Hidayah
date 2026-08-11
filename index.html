@@ -333,17 +333,34 @@
       </div>
     </section>
 
-    <!-- VIEW 6: STATISTIK KEHADIRAN (GRAFIK) -->
-    <section id="view-rekapitulasi" class="view-section hidden space-y-6 pb-12">
-      <div class="bg-white p-4 sm:p-6 rounded-xl border border-slate-200 shadow-sm">
-        <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
-          <i class="fa-solid fa-chart-line text-teal-600"></i> Statistik Kehadiran Harian Seluruh Kelompok
-        </h2>
-        <p class="text-xs text-slate-500 mt-1">Grafik tren persentase presensi harian untuk masing-masing kelas dan kelompok usia.</p>
-      </div>
+<!-- VIEW 6: STATISTIK KEHADIRAN (GRAFIK) -->
+<section id="view-rekapitulasi" class="view-section hidden space-y-6 pb-12">
+  <div class="bg-white p-4 sm:p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div>
+      <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+        <i class="fa-solid fa-chart-line text-teal-600"></i> Statistik Kehadiran Harian Seluruh Kelompok
+      </h2>
+      <p class="text-xs text-slate-500 mt-1">Grafik tren persentase presensi harian untuk masing-masing kelas dan kelompok usia.</p>
+    </div>
 
-      <div id="charts-wrapper" class="space-y-6"></div>
-    </section>
+    <!-- FILTER TANGGAL KHUSUS ADMIN -->
+    <div class="flex flex-wrap items-end gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200 shrink-0">
+      <div>
+        <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Tanggal Mulai</label>
+        <input type="date" id="chart-date-start" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-700 bg-white focus:ring-1 focus:ring-teal-500">
+      </div>
+      <div>
+        <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Tanggal Akhir</label>
+        <input type="date" id="chart-date-end" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-700 bg-white focus:ring-1 focus:ring-teal-500">
+      </div>
+      <button id="btn-filter-chart" onclick="onChartFilterChange()" class="bg-teal-600 hover:bg-teal-700 text-white font-semibold px-3 py-1.5 rounded-lg text-xs shadow transition-all flex items-center gap-1.5 h-[29px]">
+        <i class="fa-solid fa-filter"></i> Filter
+      </button>
+    </div>
+  </div>
+
+  <div id="charts-wrapper" class="space-y-6"></div>
+</section>
 
   </main>
 
