@@ -1,5 +1,5 @@
 // ==========================================
-// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (FINAL PRODUCTION COMPLETE)
+// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (STATISTICS PUBLIC ACCESS UPDATED)
 // ==========================================
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwDR7_Monit5T0MOc0R7w8VBwNG2_cUpBO9HM0c6rV8KY1p0hJT0kBu1su333AGLCp79Q/exec";
@@ -348,7 +348,7 @@ function renderPresensiTable() {
         const isAdultGroup = ["Pra Remaja", "Remaja", "Muda-Mudi", "Bapak-Bapak"].includes(jKelompok);
         return matchStatus && isAdultGroup && jGender === "laki-laki";
       } else if (currentKelas === "Perempuan") {
-        const isAdultGroup = ["Pra Remaja", "Remaja", "Muda-Mudi", "Ibu-ibu"].includes(jKelompok);
+        const isAdultGroup = ["Pra Remaja", "Remaja", "Muda-Mudi", "Ibu-Ibu"].includes(jKelompok);
         return matchStatus && isAdultGroup && jGender === "perempuan";
       }
     }
@@ -588,7 +588,7 @@ async function submitPresensi() {
         const isAdultGroup = ["Pra Remaja", "Remaja", "Muda-Mudi", "Bapak-Bapak"].includes(jKelompok);
         return matchStatus && isAdultGroup && jGender === "laki-laki";
       } else if (currentKelas === "Perempuan") {
-        const isAdultGroup = ["Pra Remaja", "Remaja", "Muda-Mudi", "Ibu-ibu"].includes(jKelompok);
+        const isAdultGroup = ["Pra Remaja", "Remaja", "Muda-Mudi", "Ibu-Ibu"].includes(jKelompok);
         return matchStatus && isAdultGroup && jGender === "perempuan";
       }
     }
@@ -791,25 +791,34 @@ function renderJurnalRekap() {
   }).join("");
 }
 
-// 6. RENDER STATISTIK GRAFIK DENGAN FILTER TANGGAL (DEFAULT 1 BULAN)
+// 6. RENDER STATISTIK GRAFIK (ADMIN FILTER TANGGAL, VIEWER TAMPILKAN SEMUA DATA)
 function initChartDateFilters() {
   const startDateInput = document.getElementById("chart-date-start");
   const endDateInput = document.getElementById("chart-date-end");
 
-  if (startDateInput && endDateInput && !startDateInput.value && !endDateInput.value) {
-    const today = new Date();
-    const oneMonthAgo = new Date();
-    oneMonthAgo.setMonth(today.getMonth() - 1);
+  if (startDateInput && endDateInput) {
+    if (currentAdmin) {
+      // Jika Admin login: Isi tanggal default 1 Bulan Terakhir jika belum terisi
+      if (!startDateInput.value && !endDateInput.value) {
+        const today = new Date();
+        const oneMonthAgo = new Date();
+        oneMonthAgo.setMonth(today.getMonth() - 1);
 
-    const formatDate = (d) => {
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return `${y}-${m}-${d}`;
-    };
+        const formatDate = (d) => {
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${y}-${m}-${d}`;
+        };
 
-    startDateInput.value = formatDate(oneMonthAgo);
-    endDateInput.value = formatDate(today);
+        startDateInput.value = formatDate(oneMonthAgo);
+        endDateInput.value = formatDate(today);
+      }
+    } else {
+      // Jika Viewer / Publik: Kosongkan nilai tanggal agar menampilkan data dari awal s/d akhir
+      startDateInput.value = "";
+      endDateInput.value = "";
+    }
   }
 }
 
@@ -849,6 +858,8 @@ function renderAllCharts() {
   Object.values(chartInstances).forEach(chart => chart && typeof chart.destroy === 'function' && chart.destroy());
   chartInstances = {};
 
+  const periodeLabel = (startDateVal && endDateVal) ? `${startDateVal} s/d ${endDateVal}` : 'Seluruh Riwayat (Awal s/d Akhir)';
+
   container.innerHTML = chartConfigs.map((cfg, idx) => `
     <div class="bg-white p-4 sm:p-6 rounded-xl border border-slate-200 shadow-sm">
       <div class="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
@@ -856,7 +867,7 @@ function renderAllCharts() {
           <span class="w-2.5 h-2.5 rounded-full bg-teal-500"></span> ${cfg.title}
         </h3>
         <span class="text-xs px-2.5 py-1 bg-slate-100 text-slate-600 rounded-full font-semibold">
-          Periode: ${startDateVal || 'Awal'} s/d ${endDateVal || 'Akhir'}
+          Periode: ${periodeLabel}
         </span>
       </div>
       <div class="relative h-64 sm:h-72">
@@ -937,6 +948,7 @@ function renderSingleChart(canvasId, selectedKelompok, selectedKelas, startDateS
 
     if (!rawDateStr || rawDateStr.length < 10) return;
 
+    // Filter tanggal hanya jika variabel tanggal terisi
     if (startDateStr && rawDateStr < startDateStr) return;
     if (endDateStr && rawDateStr > endDateStr) return;
 
