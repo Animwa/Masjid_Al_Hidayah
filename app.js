@@ -1,5 +1,5 @@
 // ==========================================
-// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (STATISTICS PUBLIC ACCESS UPDATED)
+// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (FINAL REFINED VERSION WITH STATS & AVG SUMMARY)
 // ==========================================
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwDR7_Monit5T0MOc0R7w8VBwNG2_cUpBO9HM0c6rV8KY1p0hJT0kBu1su333AGLCp79Q/exec";
@@ -887,6 +887,7 @@ function renderSingleChart(canvasId, selectedKelompok, selectedKelas, startDateS
 
   const ctx = chartCanvas.getContext("2d");
 
+  // 1. Filter Jamaah Aktif
   const jamaahList = Array.isArray(appData.jamaah) ? appData.jamaah : [];
   const totalJamaahAktifList = jamaahList.filter(j => {
     const matchStatus = String(j.Status || "Aktif").trim().toLowerCase() === "aktif";
@@ -997,6 +998,48 @@ function renderSingleChart(canvasId, selectedKelompok, selectedKelas, startDateS
     alfaData.push(pctAlfa);
   });
 
+  // 2. Hitung Rata-rata Persentase Khusus Periode Ini
+  const totalPertemuan = sortedDates.length;
+  let avgHadir = 0, avgIzin = 0, avgAlfa = 0;
+
+  if (totalPertemuan > 0) {
+    const sumHadir = hadirData.reduce((acc, curr) => acc + curr, 0);
+    const sumIzin = izinData.reduce((acc, curr) => acc + curr, 0);
+    const sumAlfa = alfaData.reduce((acc, curr) => acc + curr, 0);
+
+    avgHadir = (sumHadir / totalPertemuan).toFixed(1);
+    avgIzin = (sumIzin / totalPertemuan).toFixed(1);
+    avgAlfa = (sumAlfa / totalPertemuan).toFixed(1);
+  }
+
+  // 3. Tampilkan Badge Ringkasan Rata-rata di Atas Grafik
+  const parentCard = chartCanvas.closest('.bg-white');
+  if (parentCard) {
+    let avgContainer = parentCard.querySelector('.chart-avg-summary');
+    if (!avgContainer) {
+      avgContainer = document.createElement('div');
+      avgContainer.className = 'chart-avg-summary flex flex-wrap items-center gap-2 mb-3 text-[11px] font-bold';
+      chartCanvas.parentElement.insertAdjacentElement('beforebegin', avgContainer);
+    }
+
+    if (totalPertemuan > 0) {
+      avgContainer.innerHTML = `
+        <span class="text-slate-500 font-semibold mr-1">Rata-rata Kehadiran (${totalPertemuan} Pertemuan):</span>
+        <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
+          <i class="fa-solid fa-user-check mr-1"></i> Hadir: ${avgHadir}%
+        </span>
+        <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200">
+          <i class="fa-solid fa-user-clock mr-1"></i> Izin: ${avgIzin}%
+        </span>
+        <span class="px-2 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-200">
+          <i class="fa-solid fa-user-xmark mr-1"></i> Alfa: ${avgAlfa}%
+        </span>
+      `;
+    } else {
+      avgContainer.innerHTML = `<span class="text-slate-400 italic font-normal">Belum ada data presensi pada rentang waktu ini.</span>`;
+    }
+  }
+
   if (labels.length === 0) {
     labels = ["Belum Ada Data"];
     hadirData = [0];
@@ -1004,6 +1047,7 @@ function renderSingleChart(canvasId, selectedKelompok, selectedKelas, startDateS
     alfaData = [0];
   }
 
+  // 4. Render Grafik Chart.js
   chartInstances[canvasId] = new Chart(ctx, {
     type: "line",
     data: {
