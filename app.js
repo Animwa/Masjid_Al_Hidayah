@@ -912,7 +912,7 @@ function renderMonitoringTable() {
   }).join("");
 }
 
-// FUNGSI GENERASI LEMBAR KERJA FORMAT MATRIKS MINGGUAN & CETAK
+// FUNGSI GENERASI LEMBAR KERJA FORMAT MATRIKS MINGGUAN & CETAK (TABEL MATERI TERPISAH + KENDALA KOLOM SENDIRI)
 function downloadLembarKerja() {
   const filterSelect = document.getElementById("monitoring-filter-kelompok");
   const selectedFilter = filterSelect ? filterSelect.value : "Semua";
@@ -925,7 +925,7 @@ function downloadLembarKerja() {
   const jamaahList = Array.isArray(appData.jamaah) ? appData.jamaah : [];
   const presensiList = Array.isArray(appData.presensi) ? appData.presensi : [];
 
-  // Filter jamaah sesuai kelompok/kelas terpilih
+  // 1. Filter Jamaah Target
   const targetJamaah = jamaahList.filter(j => {
     const isAktif = String(j.Status || "Aktif").trim().toLowerCase() === "aktif";
     if (!isAktif) return false;
@@ -953,7 +953,7 @@ function downloadLembarKerja() {
   }).length;
   const totalJamaah = targetJamaah.length;
 
-  // Filter presensi sesuai rentang tanggal & kelompok
+  // 2. Filter Presensi Target
   const filteredPresensi = presensiList.filter(p => {
     if (!p.Tanggal) return false;
     let pDateStr = (p.Tanggal instanceof Date) ? p.Tanggal.toISOString().split("T")[0] : String(p.Tanggal).split("T")[0].trim();
@@ -971,7 +971,7 @@ function downloadLembarKerja() {
     return pKel.toLowerCase() === selectedFilter.toLowerCase();
   });
 
-  // Tentukan tanggal awal acuan untuk membagi Minggu 1 - 5
+  // 3. Tentukan Tanggal Acuan
   let baseDate = startDateVal ? new Date(startDateVal + "T00:00:00") : null;
   if (!baseDate) {
     const dates = filteredPresensi.map(p => {
@@ -1053,6 +1053,7 @@ function downloadLembarKerja() {
     }
   });
 
+  const isCaberawitScope = selectedFilter.toLowerCase().includes("caberawit");
   const printWindow = window.open('', '_blank');
 
   let htmlContent = `
@@ -1060,34 +1061,34 @@ function downloadLembarKerja() {
     <html lang="id">
     <head>
       <meta charset="UTF-8">
-      <title>Lembar Kerja Presensi - ${selectedFilter}</title>
+      <title>Lembar Kerja Presensi & Materi - ${selectedFilter}</title>
       <style>
-        body { font-family: Arial, sans-serif; color: #1e293b; margin: 20px; font-size: 11px; }
-        .header-box { border-bottom: 2px solid #0f766e; padding-bottom: 8px; margin-bottom: 14px; }
-        .header-box h1 { margin: 0; font-size: 18px; color: #0f766e; text-transform: uppercase; }
-        .header-box p { margin: 2px 0; color: #475569; font-size: 11px; }
-        .summary-badge-container { display: flex; gap: 10px; margin-bottom: 14px; }
-        .badge { padding: 5px 10px; border-radius: 6px; font-weight: bold; border: 1px solid #cbd5e1; background: #f8fafc; font-size: 11px; }
+        @page { size: landscape; margin: 8mm; }
+        body { font-family: Arial, sans-serif; color: #1e293b; margin: 15px; font-size: 10px; line-height: 1.2; }
+        .header-box { border-bottom: 2px solid #0f766e; padding-bottom: 6px; margin-bottom: 10px; }
+        .header-box h1 { margin: 0; font-size: 15px; color: #0f766e; text-transform: uppercase; }
+        .header-box p { margin: 2px 0; color: #475569; font-size: 10px; }
+        .summary-badge-container { display: flex; gap: 8px; margin-bottom: 10px; }
+        .badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; border: 1px solid #cbd5e1; background: #f8fafc; font-size: 10px; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
-        th, td { border: 1px solid #94a3b8; padding: 6px 8px; text-align: center; }
-        th { background-color: #f1f5f9; color: #0f172a; font-weight: bold; font-size: 10px; text-transform: uppercase; }
+        th, td { border: 1px solid #94a3b8; padding: 4px 6px; text-align: center; word-break: break-word; }
+        th { background-color: #f1f5f9; color: #0f172a; font-weight: bold; font-size: 9px; text-transform: uppercase; }
         .day-label { text-align: left; font-weight: bold; background-color: #f8fafc; }
         .avg-row { font-weight: bold; background-color: #e2e8f0; }
-        .cell-data { font-size: 10px; line-height: 1.3; }
-        .section-title { font-size: 12px; font-weight: bold; color: #0f766e; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; margin-top: 16px; margin-bottom: 8px; text-transform: uppercase; }
-        .journal-item { background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px; border-radius: 6px; margin-bottom: 8px; page-break-inside: avoid; }
-        .grid-detail { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 6px; font-size: 10px; background: #ffffff; padding: 6px; border-radius: 4px; border: 1px solid #e2e8f0; }
+        .cell-data { font-size: 9px; }
+        .section-title { font-size: 11px; font-weight: bold; color: #0f766e; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px; margin-top: 12px; margin-bottom: 6px; text-transform: uppercase; }
+        .td-left { text-align: left !important; }
         @media print {
-          body { margin: 10mm; }
+          body { margin: 0; }
           .no-print { display: none; }
           button { display: none; }
         }
       </style>
     </head>
     <body>
-      <div class="no-print" style="margin-bottom: 15px;">
-        <button onclick="window.print()" style="background:#0f766e;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:bold;">
-          🖨️ Cetak / Simpan sebagai PDF
+      <div class="no-print" style="margin-bottom: 12px;">
+        <button onclick="window.print()" style="background:#0f766e;color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:bold;font-size:11px;">
+          🖨️ Cetak / Simpan sebagai PDF (Lanskap)
         </button>
       </div>
 
@@ -1096,21 +1097,23 @@ function downloadLembarKerja() {
         <p><b>Masjid Al Hidayah</b> | Kelompok/Kelas: <b>${selectedFilter}</b> | Periode: <b>${startDateVal || 'Awal'} s/d ${endDateVal || 'Akhir'}</b></p>
       </div>
 
+      <!-- Ringkasan Jumlah Jamaah -->
       <div class="summary-badge-container">
-        <div class="badge">Laki-Laki (L): ${totalL} Orang</div>
-        <div class="badge">Perempuan (P): ${totalP} Orang</div>
-        <div class="badge" style="background:#ccfbf1;border-color:#5eead4;color:#0f766e;">Total Jamaah: ${totalJamaah} Orang</div>
+        <div class="badge">Laki-Laki (L): ${totalL} Org</div>
+        <div class="badge">Perempuan (P): ${totalP} Org</div>
+        <div class="badge" style="background:#ccfbf1;border-color:#5eead4;color:#0f766e;">Total Jamaah: ${totalJamaah} Org</div>
       </div>
 
+      <!-- Tabel Kehadiran Mingguan -->
       <table>
         <thead>
           <tr>
-            <th style="width: 15%;">HARI</th>
-            <th style="width: 17%;">MINGGU 1</th>
-            <th style="width: 17%;">MINGGU 2</th>
-            <th style="width: 17%;">MINGGU 3</th>
-            <th style="width: 17%;">MINGGU 4</th>
-            <th style="width: 17%;">MINGGU 5</th>
+            <th style="width: 12%;">HARI</th>
+            <th style="width: 17.6%;">MINGGU 1</th>
+            <th style="width: 17.6%;">MINGGU 2</th>
+            <th style="width: 17.6%;">MINGGU 3</th>
+            <th style="width: 17.6%;">MINGGU 4</th>
+            <th style="width: 17.6%;">MINGGU 5</th>
           </tr>
         </thead>
         <tbody>
@@ -1122,8 +1125,7 @@ function downloadLembarKerja() {
                 if (cell) {
                   return `
                     <td class="cell-data">
-                      <b>Tot: ${cell.total}</b><br>
-                      <span>L: ${cell.L} | P: ${cell.P}</span>
+                      <b>Tot: ${cell.total}</b> | <span>L: ${cell.L} | P: ${cell.P}</span>
                     </td>
                   `;
                 }
@@ -1139,7 +1141,7 @@ function downloadLembarKerja() {
               if (daysCount > 0 && totalJamaah > 0) {
                 const avgNum = (weekTotals[wIdx] / daysCount).toFixed(1);
                 const avgPct = ((avgNum / totalJamaah) * 100).toFixed(1);
-                return `<td>${avgNum} Org<br>(${avgPct}%)</td>`;
+                return `<td>${avgNum} Org (${avgPct}%)</td>`;
               }
               return `<td>-</td>`;
             }).join("")}
@@ -1147,53 +1149,92 @@ function downloadLembarKerja() {
         </tbody>
       </table>
 
-      <div class="section-title">Capaian Materi & Kendala KBM (Sesuai Periode)</div>
+      <!-- Tabel Terpisah Capaian Materi & Kendala KBM -->
+      <div class="section-title">Rekapitulasi Capaian Materi & Kendala KBM</div>
+
       ${journalsList.length === 0 ? `
-        <p style="color:#94a3b8;font-style:italic;">Belum ada catatan materi pengajian pada rentang waktu ini.</p>
-      ` : journalsList.map(j => {
-        let materiDetailHtml = "";
-        if (j.materiDetail) {
-          try {
-            const m = typeof j.materiDetail === 'string' ? JSON.parse(j.materiDetail) : j.materiDetail;
-            materiDetailHtml = `
-              <div class="grid-detail">
-                <div><b>Akhlakul Karimah:</b> ${m.akhlak || '-'}</div>
-                <div><b>Peraga Tilawati:</b> ${m.tilawati || '-'}</div>
-                <div><b>Bacaan:</b> ${m.bacaan || '-'}</div>
-                <div><b>Tajwid:</b> ${m.tajwid || '-'}</div>
-                <div><b>Makna Al-Qur'an:</b> ${m.maknaQuran || '-'}</div>
-                <div><b>Makna Al-Hadist:</b> ${m.maknaHadist || '-'}</div>
-                <div><b>Hafalan Dalil:</b> ${m.hafalanDalil || '-'}</div>
-                <div><b>Hafalan Surat:</b> ${m.hafalanSurat || '-'}</div>
-                <div><b>Hafalan Doa:</b> ${m.hafalanDoa || '-'}</div>
-                <div><b>BCM:</b> ${m.bcm || '-'}</div>
-                <div><b>Praktek:</b> ${m.praktek || '-'}</div>
-              </div>
-            `;
-          } catch(e) {}
-        }
+        <p style="color:#94a3b8;font-style:italic;">Belum ada catatan materi pembelajaran pada periode ini.</p>
+      ` : `
+        <table>
+          <thead>
+            ${isCaberawitScope ? `
+              <tr>
+                <th style="width: 8%;">Tgl & Hari</th>
+                <th style="width: 8%;">Pemateri</th>
+                <th style="width: 7%;">Akhlakul Karimah</th>
+                <th style="width: 7%;">Peraga Tilawati</th>
+                <th style="width: 7%;">Bacaan</th>
+                <th style="width: 6%;">Tajwid</th>
+                <th style="width: 7%;">Makna Al-Qur'an</th>
+                <th style="width: 7%;">Makna Al-Hadist</th>
+                <th style="width: 6%;">Hafalan Dalil</th>
+                <th style="width: 6%;">Hafalan Surat</th>
+                <th style="width: 6%;">Hafalan Doa</th>
+                <th style="width: 5%;">BCM</th>
+                <th style="width: 6%;">Praktek</th>
+                <th style="width: 14%; background-color:#fee2e2; color:#991b1b;">Kendala KBM</th>
+              </tr>
+            ` : `
+              <tr>
+                <th style="width: 12%;">Tgl & Hari</th>
+                <th style="width: 15%;">Pemateri</th>
+                <th style="width: 48%;">Capaian Materi / Jurnal</th>
+                <th style="width: 25%; background-color:#fee2e2; color:#991b1b;">Kendala KBM</th>
+              </tr>
+            `}
+          </thead>
+          <tbody>
+            ${journalsList.map(j => {
+              if (isCaberawitScope) {
+                let m = {};
+                try {
+                  m = typeof j.materiDetail === 'string' ? JSON.parse(j.materiDetail) : (j.materiDetail || {});
+                } catch(e) {
+                  m = {};
+                }
 
-        return `
-          <div class="journal-item">
-            <div style="display:flex;justify-content:space-between;font-weight:bold;color:#0f766e;border-bottom:1px dashed #cbd5e1;padding-bottom:3px;margin-bottom:4px;">
-              <span>📅 ${j.hari}, ${j.tanggal}</span>
-              <span>Pemateri: ${j.pemateri}</span>
-            </div>
-            <div><b>Materi / Jurnal:</b> ${j.jurnal}</div>
-            ${materiDetailHtml}
-            <div style="margin-top:4px;color:#475569;"><b>Kendala KBM:</b> ${j.kendala}</div>
-          </div>
-        `;
-      }).join("")}
+                return `
+                  <tr>
+                    <td><b>${j.hari}</b><br><span style="color:#64748b;font-size:8px;">${j.tanggal}</span></td>
+                    <td>${j.pemateri}</td>
+                    <td class="td-left">${m.akhlak || '-'}</td>
+                    <td class="td-left">${m.tilawati || '-'}</td>
+                    <td class="td-left">${m.bacaan || '-'}</td>
+                    <td class="td-left">${m.tajwid || '-'}</td>
+                    <td class="td-left">${m.maknaQuran || '-'}</td>
+                    <td class="td-left">${m.maknaHadist || '-'}</td>
+                    <td class="td-left">${m.hafalanDalil || '-'}</td>
+                    <td class="td-left">${m.hafalanSurat || '-'}</td>
+                    <td class="td-left">${m.hafalanDoa || '-'}</td>
+                    <td class="td-left">${m.bcm || '-'}</td>
+                    <td class="td-left">${m.praktek || '-'}</td>
+                    <td class="td-left" style="background:#fff1f2;color:#9f1239;">${j.kendala || '-'}</td>
+                  </tr>
+                `;
+              } else {
+                return `
+                  <tr>
+                    <td><b>${j.hari}</b><br><span style="color:#64748b;font-size:8px;">${j.tanggal}</span></td>
+                    <td>${j.pemateri}</td>
+                    <td class="td-left">${j.jurnal || '-'}</td>
+                    <td class="td-left" style="background:#fff1f2;color:#9f1239;">${j.kendala || '-'}</td>
+                  </tr>
+                `;
+              }
+            }).join("")}
+          </tbody>
+        </table>
+      `}
 
-      <div style="margin-top:30px;display:flex;justify-content:space-between;text-align:center;font-size:11px;page-break-inside:avoid;">
+      <!-- Tanda Tangan Pengesahan -->
+      <div style="margin-top:20px;display:flex;justify-content:space-between;text-align:center;font-size:10px;page-break-inside:avoid;">
         <div>
           <p>Mengetahui,</p>
-          <p style="margin-top:45px;font-weight:bold;">Ketua Pengurus</p>
+          <p style="margin-top:40px;font-weight:bold;">Ketua Pengurus</p>
         </div>
         <div>
           <p>Dicetak Pada: ${new Date().toLocaleDateString('id-ID')}</p>
-          <p style="margin-top:45px;font-weight:bold;">Pengajar / Admin</p>
+          <p style="margin-top:40px;font-weight:bold;">Pengajar / Admin</p>
         </div>
       </div>
     </body>
@@ -1204,7 +1245,6 @@ function downloadLembarKerja() {
   printWindow.document.write(htmlContent);
   printWindow.document.close();
 }
-
 function renderJurnalRekap() {
   const container = document.getElementById("jurnal-cards-wrapper");
   if (!container) return;
