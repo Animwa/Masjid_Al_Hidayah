@@ -358,7 +358,6 @@ function renderPresensiTable() {
     }
   }
 
-  // Toggle tampilan formulir materi (Caberawit vs Reguler)
   const caberawitMateriBox = document.getElementById("caberawit-materi-container");
   const regulerMateriBox = document.getElementById("reguler-materi-container");
   if (caberawitMateriBox && regulerMateriBox) {
@@ -502,7 +501,6 @@ function renderPresensiTable() {
     if (document.getElementById("presensi-jurnal")) document.getElementById("presensi-jurnal").value = savedJurnal;
     if (document.getElementById("presensi-kendala")) document.getElementById("presensi-kendala").value = savedKendala;
 
-    // Isi formulir materi caberawit
     const matKeys = {
       "mat-akhlak": "akhlak", "mat-tilawati": "tilawati", "mat-bacaan": "bacaan",
       "mat-tajwid": "tajwid", "mat-makna-quran": "maknaQuran", "mat-makna-hadist": "maknaHadist",
@@ -756,30 +754,66 @@ async function submitPresensi() {
   }
 }
 
-// 5. RENDER TABEL MONITORING (1 BULAN TERAKHIR)
+// 5. INISIALISASI & FILTER MONITORING KEHADIRAN (RENTANG WAKTU)
+function initMonitoringDateFilters() {
+  const startDateInput = document.getElementById("monitoring-date-start");
+  const endDateInput = document.getElementById("monitoring-date-end");
+
+  if (startDateInput && endDateInput) {
+    if (currentAdmin) {
+      if (!startDateInput.value && !endDateInput.value) {
+        const today = new Date();
+        const oneMonthAgo = new Date();
+        oneMonthAgo.setMonth(today.getMonth() - 1);
+
+        const formatDate = (d) => {
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${y}-${m}-${d}`;
+        };
+
+        startDateInput.value = formatDate(oneMonthAgo);
+        endDateInput.value = formatDate(today);
+      }
+    } else {
+      // Untuk viewer: kosongkan agar membaca seluruh riwayat
+      startDateInput.value = "";
+      endDateInput.value = "";
+    }
+  }
+}
+
+function onMonitoringFilterChange() {
+  if (!currentAdmin) return alert("Hanya Admin yang dapat merubah rentang tanggal monitoring!");
+  renderMonitoringTable();
+}
+
 function renderMonitoringTable() {
   const tbody = document.getElementById("table-monitoring-body");
   if (!tbody) return;
 
+  initMonitoringDateFilters();
+
   const filterSelect = document.getElementById("monitoring-filter-kelompok");
   const selectedFilter = filterSelect ? filterSelect.value : "Semua";
+
+  const startDateInput = document.getElementById("monitoring-date-start");
+  const endDateInput = document.getElementById("monitoring-date-end");
+  const startDateVal = startDateInput ? startDateInput.value : "";
+  const endDateVal = endDateInput ? endDateInput.value : "";
 
   const jamaahList = Array.isArray(appData.jamaah) ? appData.jamaah : [];
   const presensiList = Array.isArray(appData.presensi) ? appData.presensi : [];
 
-  // Hitung rentang 1 bulan terakhir
-  const today = new Date();
-  const oneMonthAgo = new Date();
-  oneMonthAgo.setMonth(today.getMonth() - 1);
-
-  const oneMonthAgoStr = oneMonthAgo.toISOString().split("T")[0];
-  const todayStr = today.toISOString().split("T")[0];
-
-  // Filter presensi 1 bulan terakhir
+  // Filter presensi berdasarkan rentang tanggal yang dipilih
   const filteredPresensi = presensiList.filter(p => {
     if (!p.Tanggal) return false;
     let pDateStr = (p.Tanggal instanceof Date) ? p.Tanggal.toISOString().split("T")[0] : String(p.Tanggal).split("T")[0].trim();
-    return pDateStr >= oneMonthAgoStr && pDateStr <= todayStr;
+    
+    if (startDateVal && pDateStr < startDateVal) return false;
+    if (endDateVal && pDateStr > endDateVal) return false;
+    return true;
   });
 
   // Filter daftar jamaah aktif
@@ -1008,7 +1042,7 @@ function renderJurnalRekap() {
   }).join("");
 }
 
-// 7. RENDER STATISTIK GRAFIK (VIEWER: FULL HISTORY, ADMIN: 1 BULAN DEFAULT)
+// 7. RENDER STATISTIK GRAFIK (VIEWER: FULL HISTORY, ADMIN: 1 BULAN DEFAULT & BISA DIUBAH)
 function initChartDateFilters() {
   const startDateInput = document.getElementById("chart-date-start");
   const endDateInput = document.getElementById("chart-date-end");
@@ -1630,13 +1664,20 @@ function logoutAdmin() {
 
 function updateAdminUI() {
   const adminElements = document.querySelectorAll(".admin-only");
+  
+  // Filter Grafik Statistik
   const startDateInput = document.getElementById("chart-date-start");
   const endDateInput = document.getElementById("chart-date-end");
   const btnFilterChart = document.getElementById("btn-filter-chart");
 
+  // Filter Monitoring
+  const monStartDate = document.getElementById("monitoring-date-start");
+  const monEndDate = document.getElementById("monitoring-date-end");
+  const btnFilterMon = document.getElementById("btn-filter-monitoring");
+
   const isReadOnly = !currentAdmin;
 
-  [startDateInput, endDateInput].forEach(el => {
+  [startDateInput, endDateInput, monStartDate, monEndDate].forEach(el => {
     if (el) {
       el.disabled = isReadOnly;
       if (isReadOnly) {
@@ -1649,14 +1690,16 @@ function updateAdminUI() {
     }
   });
 
-  if (btnFilterChart) {
-    btnFilterChart.disabled = isReadOnly;
-    if (isReadOnly) {
-      btnFilterChart.classList.add("opacity-50", "cursor-not-allowed");
-    } else {
-      btnFilterChart.classList.remove("opacity-50", "cursor-not-allowed");
+  [btnFilterChart, btnFilterMon].forEach(btn => {
+    if (btn) {
+      btn.disabled = isReadOnly;
+      if (isReadOnly) {
+        btn.classList.add("opacity-50", "cursor-not-allowed");
+      } else {
+        btn.classList.remove("opacity-50", "cursor-not-allowed");
+      }
     }
-  }
+  });
 
   if (currentAdmin) {
     adminElements.forEach(el => el.classList.remove("hidden"));
