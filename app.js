@@ -1,5 +1,5 @@
 // ==========================================
-// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (FINAL REFINED VERSION WITH STATS & AVG SUMMARY)
+// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (CABERAWIT A-D UPDATED)
 // ==========================================
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwDR7_Monit5T0MOc0R7w8VBwNG2_cUpBO9HM0c6rV8KY1p0hJT0kBu1su333AGLCp79Q/exec";
@@ -15,7 +15,7 @@ let appData = {
 
 let currentAdmin = null;
 let currentKelompok = "Caberawit";
-let currentKelas = "PAUD";
+let currentKelas = "Caberawit A";
 let activeFormType = null;
 
 let chartInstances = {};
@@ -25,7 +25,6 @@ if (typeof ChartDataLabels !== 'undefined') {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // Pulihkan sesi Admin dari sessionStorage jika ada
   const savedAdmin = sessionStorage.getItem("currentAdmin");
   if (savedAdmin) {
     try {
@@ -99,7 +98,7 @@ function renderAllViews() {
   
   const rekapSection = document.getElementById("view-rekapitulasi");
   if (rekapSection && !rekapSection.classList.contains("hidden")) {
-    onChartFilterChange();
+    renderAllCharts();
   }
 }
 
@@ -177,7 +176,7 @@ function selectKelompok(kelompok) {
     }
     selectKelas("Caberawit Laki-Laki");
   } else if (kelompok === "Caberawit") {
-    const classes = ["PAUD", "Tilawati 1", "Tilawati 2", "Tilawati 3", "Tilawati 4", "Tilawati 5", "Al-Qur'an"];
+    const classes = ["Caberawit A", "Caberawit B", "Caberawit C", "Caberawit D"];
     if (classnav) classnav.classList.remove("hidden");
     if (classBtnContainer) {
       classBtnContainer.innerHTML = "";
@@ -189,7 +188,7 @@ function selectKelompok(kelompok) {
         classBtnContainer.appendChild(btn);
       });
     }
-    selectKelas("PAUD");
+    selectKelas("Caberawit A");
   } else {
     if (classnav) classnav.classList.add("hidden");
     selectKelas("Umum");
@@ -308,7 +307,7 @@ function renderJamaah() {
 
   tbody.innerHTML = data.map(j => {
     const kelompok = String(j.Kelompok || "Unassigned").trim();
-    let displayKelas = (kelompok === "Caberawit") ? (j.Kelas || "PAUD") : "-";
+    let displayKelas = (kelompok === "Caberawit") ? (j.Kelas || "Caberawit A") : "-";
 
     return `
       <tr class="bg-white border-b hover:bg-slate-50">
@@ -660,13 +659,10 @@ function renderJurnalRekap() {
     { kelompok: "ASAD", kelas: "Caberawit Perempuan", title: "ASAD - Caberawit Perempuan" },
     { kelompok: "ASAD", kelas: "Laki-Laki", title: "ASAD - Laki-Laki (Pra Remaja - Bapak)" },
     { kelompok: "ASAD", kelas: "Perempuan", title: "ASAD - Perempuan (Pra Remaja - Ibu)" },
-    { kelompok: "Caberawit", kelas: "PAUD", title: "Caberawit - PAUD" },
-    { kelompok: "Caberawit", kelas: "Tilawati 1", title: "Caberawit - Tilawati 1" },
-    { kelompok: "Caberawit", kelas: "Tilawati 2", title: "Caberawit - Tilawati 2" },
-    { kelompok: "Caberawit", kelas: "Tilawati 3", title: "Caberawit - Tilawati 3" },
-    { kelompok: "Caberawit", kelas: "Tilawati 4", title: "Caberawit - Tilawati 4" },
-    { kelompok: "Caberawit", kelas: "Tilawati 5", title: "Caberawit - Tilawati 5" },
-    { kelompok: "Caberawit", kelas: "Al-Qur'an", title: "Caberawit - Al-Qur'an" },
+    { kelompok: "Caberawit", kelas: "Caberawit A", title: "Caberawit - Caberawit A" },
+    { kelompok: "Caberawit", kelas: "Caberawit B", title: "Caberawit - Caberawit B" },
+    { kelompok: "Caberawit", kelas: "Caberawit C", title: "Caberawit - Caberawit C" },
+    { kelompok: "Caberawit", kelas: "Caberawit D", title: "Caberawit - Caberawit D" },
     { kelompok: "Pra Remaja", kelas: "Umum", title: "Pra Remaja (SMP)" },
     { kelompok: "Remaja", kelas: "Umum", title: "Remaja (SMA)" },
     { kelompok: "Muda-Mudi", kelas: "Umum", title: "Muda-Mudi" },
@@ -791,14 +787,13 @@ function renderJurnalRekap() {
   }).join("");
 }
 
-// 6. RENDER STATISTIK GRAFIK (ADMIN FILTER TANGGAL, VIEWER TAMPILKAN SEMUA DATA)
+// 6. RENDER STATISTIK GRAFIK (VIEWER: FULL HISTORY, ADMIN: 1 BULAN DEFAULT & BISA DIUBAH)
 function initChartDateFilters() {
   const startDateInput = document.getElementById("chart-date-start");
   const endDateInput = document.getElementById("chart-date-end");
 
   if (startDateInput && endDateInput) {
     if (currentAdmin) {
-      // Jika Admin login: Isi tanggal default 1 Bulan Terakhir jika belum terisi
       if (!startDateInput.value && !endDateInput.value) {
         const today = new Date();
         const oneMonthAgo = new Date();
@@ -815,7 +810,6 @@ function initChartDateFilters() {
         endDateInput.value = formatDate(today);
       }
     } else {
-      // Jika Viewer / Publik: Kosongkan nilai tanggal agar menampilkan data dari awal s/d akhir
       startDateInput.value = "";
       endDateInput.value = "";
     }
@@ -841,13 +835,10 @@ function renderAllCharts() {
     { kelompok: "ASAD", kelas: "Caberawit Perempuan", title: "ASAD - Caberawit Perempuan" },
     { kelompok: "ASAD", kelas: "Laki-Laki", title: "ASAD - Laki-Laki" },
     { kelompok: "ASAD", kelas: "Perempuan", title: "ASAD - Perempuan" },
-    { kelompok: "Caberawit", kelas: "PAUD", title: "Caberawit - PAUD" },
-    { kelompok: "Caberawit", kelas: "Tilawati 1", title: "Caberawit - Tilawati 1" },
-    { kelompok: "Caberawit", kelas: "Tilawati 2", title: "Caberawit - Tilawati 2" },
-    { kelompok: "Caberawit", kelas: "Tilawati 3", title: "Caberawit - Tilawati 3" },
-    { kelompok: "Caberawit", kelas: "Tilawati 4", title: "Caberawit - Tilawati 4" },
-    { kelompok: "Caberawit", kelas: "Tilawati 5", title: "Caberawit - Tilawati 5" },
-    { kelompok: "Caberawit", kelas: "Al-Qur'an", title: "Caberawit - Al-Qur'an" },
+    { kelompok: "Caberawit", kelas: "Caberawit A", title: "Caberawit - Caberawit A" },
+    { kelompok: "Caberawit", kelas: "Caberawit B", title: "Caberawit - Caberawit B" },
+    { kelompok: "Caberawit", kelas: "Caberawit C", title: "Caberawit - Caberawit C" },
+    { kelompok: "Caberawit", kelas: "Caberawit D", title: "Caberawit - Caberawit D" },
     { kelompok: "Pra Remaja", kelas: "Umum", title: "Pra Remaja (SMP)" },
     { kelompok: "Remaja", kelas: "Umum", title: "Remaja (SMA)" },
     { kelompok: "Muda-Mudi", kelas: "Umum", title: "Muda-Mudi" },
@@ -862,7 +853,7 @@ function renderAllCharts() {
 
   container.innerHTML = chartConfigs.map((cfg, idx) => `
     <div class="bg-white p-4 sm:p-6 rounded-xl border border-slate-200 shadow-sm">
-      <div class="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
+      <div class="flex items-center justify-between mb-3 border-b border-slate-100 pb-3">
         <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
           <span class="w-2.5 h-2.5 rounded-full bg-teal-500"></span> ${cfg.title}
         </h3>
@@ -870,6 +861,7 @@ function renderAllCharts() {
           Periode: ${periodeLabel}
         </span>
       </div>
+      <div id="chart-avg-${idx}" class="flex flex-wrap items-center gap-2 mb-3 text-[11px] font-bold"></div>
       <div class="relative h-64 sm:h-72">
         <canvas id="chart-canvas-${idx}"></canvas>
       </div>
@@ -877,17 +869,17 @@ function renderAllCharts() {
   `).join("");
 
   chartConfigs.forEach((cfg, idx) => {
-    renderSingleChart(`chart-canvas-${idx}`, cfg.kelompok, cfg.kelas, startDateVal, endDateVal);
+    renderSingleChart(`chart-canvas-${idx}`, `chart-avg-${idx}`, cfg.kelompok, cfg.kelas, startDateVal, endDateVal);
   });
 }
 
-function renderSingleChart(canvasId, selectedKelompok, selectedKelas, startDateStr, endDateStr) {
+function renderSingleChart(canvasId, avgContainerId, selectedKelompok, selectedKelas, startDateStr, endDateStr) {
   const chartCanvas = document.getElementById(canvasId);
+  const avgContainer = document.getElementById(avgContainerId);
   if (!chartCanvas) return;
 
   const ctx = chartCanvas.getContext("2d");
 
-  // 1. Filter Jamaah Aktif
   const jamaahList = Array.isArray(appData.jamaah) ? appData.jamaah : [];
   const totalJamaahAktifList = jamaahList.filter(j => {
     const matchStatus = String(j.Status || "Aktif").trim().toLowerCase() === "aktif";
@@ -949,7 +941,6 @@ function renderSingleChart(canvasId, selectedKelompok, selectedKelas, startDateS
 
     if (!rawDateStr || rawDateStr.length < 10) return;
 
-    // Filter tanggal hanya jika variabel tanggal terisi
     if (startDateStr && rawDateStr < startDateStr) return;
     if (endDateStr && rawDateStr > endDateStr) return;
 
@@ -998,33 +989,19 @@ function renderSingleChart(canvasId, selectedKelompok, selectedKelas, startDateS
     alfaData.push(pctAlfa);
   });
 
-  // 2. Hitung Rata-rata Persentase Khusus Periode Ini
   const totalPertemuan = sortedDates.length;
-  let avgHadir = 0, avgIzin = 0, avgAlfa = 0;
-
-  if (totalPertemuan > 0) {
-    const sumHadir = hadirData.reduce((acc, curr) => acc + curr, 0);
-    const sumIzin = izinData.reduce((acc, curr) => acc + curr, 0);
-    const sumAlfa = alfaData.reduce((acc, curr) => acc + curr, 0);
-
-    avgHadir = (sumHadir / totalPertemuan).toFixed(1);
-    avgIzin = (sumIzin / totalPertemuan).toFixed(1);
-    avgAlfa = (sumAlfa / totalPertemuan).toFixed(1);
-  }
-
-  // 3. Tampilkan Badge Ringkasan Rata-rata di Atas Grafik
-  const parentCard = chartCanvas.closest('.bg-white');
-  if (parentCard) {
-    let avgContainer = parentCard.querySelector('.chart-avg-summary');
-    if (!avgContainer) {
-      avgContainer = document.createElement('div');
-      avgContainer.className = 'chart-avg-summary flex flex-wrap items-center gap-2 mb-3 text-[11px] font-bold';
-      chartCanvas.parentElement.insertAdjacentElement('beforebegin', avgContainer);
-    }
-
+  if (avgContainer) {
     if (totalPertemuan > 0) {
+      const sumHadir = hadirData.reduce((acc, curr) => acc + curr, 0);
+      const sumIzin = izinData.reduce((acc, curr) => acc + curr, 0);
+      const sumAlfa = alfaData.reduce((acc, curr) => acc + curr, 0);
+
+      const avgHadir = (sumHadir / totalPertemuan).toFixed(1);
+      const avgIzin = (sumIzin / totalPertemuan).toFixed(1);
+      const avgAlfa = (sumAlfa / totalPertemuan).toFixed(1);
+
       avgContainer.innerHTML = `
-        <span class="text-slate-500 font-semibold mr-1">Rata-rata Kehadiran (${totalPertemuan} Pertemuan):</span>
+        <span class="text-slate-500 font-semibold mr-1">Rata-rata (${totalPertemuan} Pertemuan):</span>
         <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
           <i class="fa-solid fa-user-check mr-1"></i> Hadir: ${avgHadir}%
         </span>
@@ -1047,7 +1024,6 @@ function renderSingleChart(canvasId, selectedKelompok, selectedKelas, startDateS
     alfaData = [0];
   }
 
-  // 4. Render Grafik Chart.js
   chartInstances[canvasId] = new Chart(ctx, {
     type: "line",
     data: {
@@ -1310,7 +1286,7 @@ function onKelompokChange(selectedKelas = null) {
 
   if (kVal === "Caberawit") {
     if (kelasWrapper) kelasWrapper.style.display = "block";
-    const options = ["PAUD", "Tilawati 1", "Tilawati 2", "Tilawati 3", "Tilawati 4", "Tilawati 5", "Al-Qur'an"];
+    const options = ["Caberawit A", "Caberawit B", "Caberawit C", "Caberawit D"];
     options.forEach(opt => {
       const isSelected = (selectedKelas && String(selectedKelas).trim().toLowerCase() === String(opt).trim().toLowerCase()) ? "selected" : "";
       kelasSelect.innerHTML += `<option value="${opt}" ${isSelected}>${opt}</option>`;
@@ -1411,8 +1387,6 @@ async function handleLogin(e) {
     const json = await res.json();
     if (json.success) {
       currentAdmin = { nama: json.admin.nama, role: json.admin.role, pin: pin };
-      
-      // Simpan sesi ke sessionStorage
       sessionStorage.setItem("currentAdmin", JSON.stringify(currentAdmin));
       
       updateAdminUI();
@@ -1441,7 +1415,6 @@ function updateAdminUI() {
 
   const isReadOnly = !currentAdmin;
 
-  // Atur filter grafik agar hanya bisa diubah Admin
   [startDateInput, endDateInput].forEach(el => {
     if (el) {
       el.disabled = isReadOnly;
