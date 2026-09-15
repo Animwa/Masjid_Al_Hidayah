@@ -1,5 +1,5 @@
 // ==========================================
-// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (CABERAWIT 29 KARAKTER & MONITORING COMPLETE)
+// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (FINAL REFINED VERSION WITH WORKSHEET & CABERAWIT MONITORING)
 // ==========================================
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzVcpEWy9osIigdis6aniojmi5EaYarUWUSOjT9mRBkydj6tcEygedtnrRL8RvxgFa_3Q/exec";
@@ -777,7 +777,6 @@ function initMonitoringDateFilters() {
         endDateInput.value = formatDate(today);
       }
     } else {
-      // Untuk viewer: kosongkan agar membaca seluruh riwayat
       startDateInput.value = "";
       endDateInput.value = "";
     }
@@ -821,17 +820,27 @@ function renderMonitoringTable() {
     const isAktif = String(j.Status || "Aktif").trim().toLowerCase() === "aktif";
     if (!isAktif) return false;
     if (selectedFilter === "Semua") return true;
-    return String(j.Kelompok || "").trim().toLowerCase() === selectedFilter.toLowerCase();
+
+    const jKel = String(j.Kelompok || "").trim();
+    const jKls = String(j.Kelas || "").trim();
+
+    if (selectedFilter === "Caberawit") {
+      return jKel.toLowerCase() === "caberawit";
+    } else if (selectedFilter.startsWith("Caberawit ")) {
+      return jKel.toLowerCase() === "caberawit" && jKls.toLowerCase() === selectedFilter.toLowerCase();
+    } else {
+      return jKel.toLowerCase() === selectedFilter.toLowerCase();
+    }
   });
 
   if (targetJamaah.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9" class="px-4 py-6 text-center text-slate-400 italic">Tidak ada data jamaah pada kelompok ini.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" class="px-4 py-6 text-center text-slate-400 italic">Tidak ada data jamaah pada kelompok/kelas ini.</td></tr>`;
     return;
   }
 
   tbody.innerHTML = targetJamaah.map((j, idx) => {
     const namaKey = String(j.Nama || "").trim().toLowerCase();
-    const isCaberawit = String(j.Kelompok || "").trim() === "Caberawit";
+    const isCaberawit = String(j.Kelompok || "").trim().toLowerCase() === "caberawit";
 
     let countHadir = 0;
     let countIzin = 0;
@@ -871,7 +880,7 @@ function renderMonitoringTable() {
       }
     });
 
-    const displayKelas = isCaberawit ? `${j.Kelompok} (${j.Kelas || 'A'})` : j.Kelompok;
+    const displayKelas = isCaberawit ? `${j.Kelompok} (${j.Kelas || 'Caberawit A'})` : j.Kelompok;
     const reasonsText = izinReasons.length > 0 ? izinReasons.join("; ") : "-";
 
     let karakterStatusBadge = "-";
@@ -901,6 +910,299 @@ function renderMonitoringTable() {
       </tr>
     `;
   }).join("");
+}
+
+// FUNGSI GENERASI LEMBAR KERJA FORMAT MATRIKS MINGGUAN & CETAK
+function downloadLembarKerja() {
+  const filterSelect = document.getElementById("monitoring-filter-kelompok");
+  const selectedFilter = filterSelect ? filterSelect.value : "Semua";
+
+  const startDateInput = document.getElementById("monitoring-date-start");
+  const endDateInput = document.getElementById("monitoring-date-end");
+  const startDateVal = startDateInput ? startDateInput.value : "";
+  const endDateVal = endDateInput ? endDateInput.value : "";
+
+  const jamaahList = Array.isArray(appData.jamaah) ? appData.jamaah : [];
+  const presensiList = Array.isArray(appData.presensi) ? appData.presensi : [];
+
+  // Filter jamaah sesuai kelompok/kelas terpilih
+  const targetJamaah = jamaahList.filter(j => {
+    const isAktif = String(j.Status || "Aktif").trim().toLowerCase() === "aktif";
+    if (!isAktif) return false;
+    if (selectedFilter === "Semua") return true;
+
+    const jKel = String(j.Kelompok || "").trim();
+    const jKls = String(j.Kelas || "").trim();
+
+    if (selectedFilter === "Caberawit") {
+      return jKel.toLowerCase() === "caberawit";
+    } else if (selectedFilter.startsWith("Caberawit ")) {
+      return jKel.toLowerCase() === "caberawit" && jKls.toLowerCase() === selectedFilter.toLowerCase();
+    } else {
+      return jKel.toLowerCase() === selectedFilter.toLowerCase();
+    }
+  });
+
+  const totalL = targetJamaah.filter(j => {
+    const g = String(j.Gender || "").trim().toLowerCase();
+    return g === "laki-laki" || g === "l";
+  }).length;
+  const totalP = targetJamaah.filter(j => {
+    const g = String(j.Gender || "").trim().toLowerCase();
+    return g === "perempuan" || g === "p";
+  }).length;
+  const totalJamaah = targetJamaah.length;
+
+  // Filter presensi sesuai rentang tanggal & kelompok
+  const filteredPresensi = presensiList.filter(p => {
+    if (!p.Tanggal) return false;
+    let pDateStr = (p.Tanggal instanceof Date) ? p.Tanggal.toISOString().split("T")[0] : String(p.Tanggal).split("T")[0].trim();
+    if (startDateVal && pDateStr < startDateVal) return false;
+    if (endDateVal && pDateStr > endDateVal) return false;
+
+    const pKel = String(p.Kelompok || "").trim();
+    const pKls = String(p.Kelas || "").trim();
+
+    if (selectedFilter === "Semua") return true;
+    if (selectedFilter === "Caberawit") return pKel.toLowerCase() === "caberawit";
+    if (selectedFilter.startsWith("Caberawit ")) {
+      return pKel.toLowerCase() === "caberawit" && pKls.toLowerCase() === selectedFilter.toLowerCase();
+    }
+    return pKel.toLowerCase() === selectedFilter.toLowerCase();
+  });
+
+  // Tentukan tanggal awal acuan untuk membagi Minggu 1 - 5
+  let baseDate = startDateVal ? new Date(startDateVal + "T00:00:00") : null;
+  if (!baseDate) {
+    const dates = filteredPresensi.map(p => {
+      return (p.Tanggal instanceof Date) ? p.Tanggal.toISOString().split("T")[0] : String(p.Tanggal).split("T")[0].trim();
+    }).sort();
+    baseDate = dates.length > 0 ? new Date(dates[0] + "T00:00:00") : new Date();
+  }
+
+  const daysList = [
+    { name: "Senin", dayNum: 1 },
+    { name: "Selasa", dayNum: 2 },
+    { name: "Rabu", dayNum: 3 },
+    { name: "Kamis", dayNum: 4 },
+    { name: "Jumat", dayNum: 5 },
+    { name: "Sabtu", dayNum: 6 },
+    { name: "Minggu", dayNum: 0 }
+  ];
+
+  let dailyMap = {};
+  let journalsList = [];
+
+  filteredPresensi.forEach(p => {
+    let pDateStr = (p.Tanggal instanceof Date) ? p.Tanggal.toISOString().split("T")[0] : String(p.Tanggal).split("T")[0].trim();
+    const st = String(p.StatusPresensi || "Hadir").trim();
+    const pNama = String(p.NamaJamaah || "").trim().toLowerCase();
+
+    const matchJ = targetJamaah.find(j => String(j.Nama || "").trim().toLowerCase() === pNama);
+    const gender = matchJ ? String(matchJ.Gender || "").trim().toLowerCase() : "";
+
+    if (!dailyMap[pDateStr]) {
+      dailyMap[pDateStr] = { L: 0, P: 0, total: 0 };
+    }
+
+    if (st === "Hadir") {
+      if (gender === "laki-laki" || gender === "l") {
+        dailyMap[pDateStr].L++;
+      } else {
+        dailyMap[pDateStr].P++;
+      }
+      dailyMap[pDateStr].total++;
+    }
+
+    if (!journalsList.find(item => item.tanggal === pDateStr)) {
+      journalsList.push({
+        tanggal: pDateStr,
+        hari: p.Hari || p.hari || "-",
+        pemateri: p.Pemateri || p.pemateri || "-",
+        jurnal: p.Jurnal || p.jurnal || "-",
+        kendala: p.Kendala || p.kendala || "-",
+        materiDetail: p.MateriCaberawit || p.materiCaberawit || null
+      });
+    }
+  });
+
+  journalsList.sort((a, b) => a.tanggal.localeCompare(b.tanggal));
+
+  function getWeekIndex(dateStr) {
+    const cur = new Date(dateStr + "T00:00:00");
+    const diffDays = Math.floor((cur - baseDate) / (1000 * 60 * 60 * 24));
+    if (diffDays < 0) return 0;
+    const w = Math.floor(diffDays / 7);
+    return Math.min(w, 4);
+  }
+
+  let matrix = Array(7).fill(null).map(() => Array(5).fill(null));
+  let weekTotals = [0, 0, 0, 0, 0];
+  let weekDaysCount = [0, 0, 0, 0, 0];
+
+  Object.keys(dailyMap).forEach(dateStr => {
+    const d = new Date(dateStr + "T00:00:00");
+    const dayOfWeek = d.getDay();
+    const dayRowIdx = daysList.findIndex(item => item.dayNum === dayOfWeek);
+    const weekIdx = getWeekIndex(dateStr);
+
+    if (dayRowIdx !== -1 && weekIdx >= 0 && weekIdx < 5) {
+      matrix[dayRowIdx][weekIdx] = dailyMap[dateStr];
+      weekTotals[weekIdx] += dailyMap[dateStr].total;
+      weekDaysCount[weekIdx]++;
+    }
+  });
+
+  const printWindow = window.open('', '_blank');
+
+  let htmlContent = `
+    <!DOCTYPE html>
+    <html lang="id">
+    <head>
+      <meta charset="UTF-8">
+      <title>Lembar Kerja Presensi - ${selectedFilter}</title>
+      <style>
+        body { font-family: Arial, sans-serif; color: #1e293b; margin: 20px; font-size: 11px; }
+        .header-box { border-bottom: 2px solid #0f766e; padding-bottom: 8px; margin-bottom: 14px; }
+        .header-box h1 { margin: 0; font-size: 18px; color: #0f766e; text-transform: uppercase; }
+        .header-box p { margin: 2px 0; color: #475569; font-size: 11px; }
+        .summary-badge-container { display: flex; gap: 10px; margin-bottom: 14px; }
+        .badge { padding: 5px 10px; border-radius: 6px; font-weight: bold; border: 1px solid #cbd5e1; background: #f8fafc; font-size: 11px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
+        th, td { border: 1px solid #94a3b8; padding: 6px 8px; text-align: center; }
+        th { background-color: #f1f5f9; color: #0f172a; font-weight: bold; font-size: 10px; text-transform: uppercase; }
+        .day-label { text-align: left; font-weight: bold; background-color: #f8fafc; }
+        .avg-row { font-weight: bold; background-color: #e2e8f0; }
+        .cell-data { font-size: 10px; line-height: 1.3; }
+        .section-title { font-size: 12px; font-weight: bold; color: #0f766e; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; margin-top: 16px; margin-bottom: 8px; text-transform: uppercase; }
+        .journal-item { background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px; border-radius: 6px; margin-bottom: 8px; page-break-inside: avoid; }
+        .grid-detail { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 6px; font-size: 10px; background: #ffffff; padding: 6px; border-radius: 4px; border: 1px solid #e2e8f0; }
+        @media print {
+          body { margin: 10mm; }
+          .no-print { display: none; }
+          button { display: none; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="no-print" style="margin-bottom: 15px;">
+        <button onclick="window.print()" style="background:#0f766e;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:bold;">
+          🖨️ Cetak / Simpan sebagai PDF
+        </button>
+      </div>
+
+      <div class="header-box">
+        <h1>LEMBAR KERJA PRESENSI & CAPAIAN PEMBELAJARAN</h1>
+        <p><b>Masjid Al Hidayah</b> | Kelompok/Kelas: <b>${selectedFilter}</b> | Periode: <b>${startDateVal || 'Awal'} s/d ${endDateVal || 'Akhir'}</b></p>
+      </div>
+
+      <div class="summary-badge-container">
+        <div class="badge">Laki-Laki (L): ${totalL} Orang</div>
+        <div class="badge">Perempuan (P): ${totalP} Orang</div>
+        <div class="badge" style="background:#ccfbf1;border-color:#5eead4;color:#0f766e;">Total Jamaah: ${totalJamaah} Orang</div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 15%;">HARI</th>
+            <th style="width: 17%;">MINGGU 1</th>
+            <th style="width: 17%;">MINGGU 2</th>
+            <th style="width: 17%;">MINGGU 3</th>
+            <th style="width: 17%;">MINGGU 4</th>
+            <th style="width: 17%;">MINGGU 5</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${daysList.map((day, rIdx) => `
+            <tr>
+              <td class="day-label">${day.name}</td>
+              ${[0, 1, 2, 3, 4].map(wIdx => {
+                const cell = matrix[rIdx][wIdx];
+                if (cell) {
+                  return `
+                    <td class="cell-data">
+                      <b>Tot: ${cell.total}</b><br>
+                      <span>L: ${cell.L} | P: ${cell.P}</span>
+                    </td>
+                  `;
+                }
+                return `<td style="color:#cbd5e1;">-</td>`;
+              }).join("")}
+            </tr>
+          `).join("")}
+
+          <tr class="avg-row">
+            <td class="day-label" style="text-align:center;">RATA-RATA</td>
+            ${[0, 1, 2, 3, 4].map(wIdx => {
+              const daysCount = weekDaysCount[wIdx];
+              if (daysCount > 0 && totalJamaah > 0) {
+                const avgNum = (weekTotals[wIdx] / daysCount).toFixed(1);
+                const avgPct = ((avgNum / totalJamaah) * 100).toFixed(1);
+                return `<td>${avgNum} Org<br>(${avgPct}%)</td>`;
+              }
+              return `<td>-</td>`;
+            }).join("")}
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="section-title">Capaian Materi & Kendala KBM (Sesuai Periode)</div>
+      ${journalsList.length === 0 ? `
+        <p style="color:#94a3b8;font-style:italic;">Belum ada catatan materi pengajian pada rentang waktu ini.</p>
+      ` : journalsList.map(j => {
+        let materiDetailHtml = "";
+        if (j.materiDetail) {
+          try {
+            const m = typeof j.materiDetail === 'string' ? JSON.parse(j.materiDetail) : j.materiDetail;
+            materiDetailHtml = `
+              <div class="grid-detail">
+                <div><b>Akhlakul Karimah:</b> ${m.akhlak || '-'}</div>
+                <div><b>Peraga Tilawati:</b> ${m.tilawati || '-'}</div>
+                <div><b>Bacaan:</b> ${m.bacaan || '-'}</div>
+                <div><b>Tajwid:</b> ${m.tajwid || '-'}</div>
+                <div><b>Makna Al-Qur'an:</b> ${m.maknaQuran || '-'}</div>
+                <div><b>Makna Al-Hadist:</b> ${m.maknaHadist || '-'}</div>
+                <div><b>Hafalan Dalil:</b> ${m.hafalanDalil || '-'}</div>
+                <div><b>Hafalan Surat:</b> ${m.hafalanSurat || '-'}</div>
+                <div><b>Hafalan Doa:</b> ${m.hafalanDoa || '-'}</div>
+                <div><b>BCM:</b> ${m.bcm || '-'}</div>
+                <div><b>Praktek:</b> ${m.praktek || '-'}</div>
+              </div>
+            `;
+          } catch(e) {}
+        }
+
+        return `
+          <div class="journal-item">
+            <div style="display:flex;justify-content:space-between;font-weight:bold;color:#0f766e;border-bottom:1px dashed #cbd5e1;padding-bottom:3px;margin-bottom:4px;">
+              <span>📅 ${j.hari}, ${j.tanggal}</span>
+              <span>Pemateri: ${j.pemateri}</span>
+            </div>
+            <div><b>Materi / Jurnal:</b> ${j.jurnal}</div>
+            ${materiDetailHtml}
+            <div style="margin-top:4px;color:#475569;"><b>Kendala KBM:</b> ${j.kendala}</div>
+          </div>
+        `;
+      }).join("")}
+
+      <div style="margin-top:30px;display:flex;justify-content:space-between;text-align:center;font-size:11px;page-break-inside:avoid;">
+        <div>
+          <p>Mengetahui,</p>
+          <p style="margin-top:45px;font-weight:bold;">Ketua Pengurus</p>
+        </div>
+        <div>
+          <p>Dicetak Pada: ${new Date().toLocaleDateString('id-ID')}</p>
+          <p style="margin-top:45px;font-weight:bold;">Pengajar / Admin</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  printWindow.document.open();
+  printWindow.document.write(htmlContent);
+  printWindow.document.close();
 }
 
 function renderJurnalRekap() {
