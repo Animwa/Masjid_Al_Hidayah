@@ -1,8 +1,8 @@
 // ==========================================
-// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (CABERAWIT A-D UPDATED)
+// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (CABERAWIT 29 KARAKTER & MONITORING COMPLETE)
 // ==========================================
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwDR7_Monit5T0MOc0R7w8VBwNG2_cUpBO9HM0c6rV8KY1p0hJT0kBu1su333AGLCp79Q/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzVcpEWy9osIigdis6aniojmi5EaYarUWUSOjT9mRBkydj6tcEygedtnrRL8RvxgFa_3Q/exec";
 
 let appData = {
   pengurus: [],
@@ -94,6 +94,7 @@ function renderAllViews() {
   renderInventaris();
   renderJamaah();
   renderPresensiTable();
+  renderMonitoringTable();
   renderJurnalRekap();
   
   const rekapSection = document.getElementById("view-rekapitulasi");
@@ -122,7 +123,9 @@ function switchTab(tabName) {
     if (classnav) classnav.classList.add("hidden");
   }
 
-  if (tabName === "rekapitulasi") {
+  if (tabName === "monitoring") {
+    renderMonitoringTable();
+  } else if (tabName === "rekapitulasi") {
     renderAllCharts();
   } else if (tabName === "jurnal-rekap") {
     renderJurnalRekap();
@@ -329,6 +332,45 @@ function renderJamaah() {
 }
 
 function renderPresensiTable() {
+  const isCaberawit = (currentKelompok === "Caberawit");
+  const theadTr = document.getElementById("presensi-table-header");
+  
+  if (theadTr) {
+    if (isCaberawit) {
+      theadTr.innerHTML = `
+        <th scope="col" class="px-3 py-3 text-center w-12">NO</th>
+        <th scope="col" class="px-4 py-3">NAMA JAMAAH</th>
+        <th scope="col" class="px-3 py-3 text-center w-16">HADIR</th>
+        <th scope="col" class="px-3 py-3 text-center w-16">IZIN</th>
+        <th scope="col" class="px-3 py-3 text-center w-16">ALFA</th>
+        <th scope="col" class="px-3 py-3 text-center w-36 text-teal-800">29 KARAKTER</th>
+        <th scope="col" class="px-3 py-3 text-left w-48">KETERANGAN</th>
+      `;
+    } else {
+      theadTr.innerHTML = `
+        <th scope="col" class="px-3 py-3 text-center w-12">NO</th>
+        <th scope="col" class="px-4 py-3">NAMA JAMAAH</th>
+        <th scope="col" class="px-3 py-3 text-center w-16">HADIR</th>
+        <th scope="col" class="px-3 py-3 text-center w-16">IZIN</th>
+        <th scope="col" class="px-3 py-3 text-center w-16">ALFA</th>
+        <th scope="col" class="px-3 py-3 text-left w-48">KETERANGAN</th>
+      `;
+    }
+  }
+
+  // Toggle tampilan formulir materi (Caberawit vs Reguler)
+  const caberawitMateriBox = document.getElementById("caberawit-materi-container");
+  const regulerMateriBox = document.getElementById("reguler-materi-container");
+  if (caberawitMateriBox && regulerMateriBox) {
+    if (isCaberawit) {
+      caberawitMateriBox.classList.remove("hidden");
+      regulerMateriBox.classList.add("hidden");
+    } else {
+      caberawitMateriBox.classList.add("hidden");
+      regulerMateriBox.classList.remove("hidden");
+    }
+  }
+
   const jamaahList = Array.isArray(appData.jamaah) ? appData.jamaah : [];
   const presensiList = Array.isArray(appData.presensi) ? appData.presensi : [];
 
@@ -337,7 +379,6 @@ function renderPresensiTable() {
     const jKelompok = String(j.Kelompok || "").trim();
     const jGender = String(j.Gender || "").trim().toLowerCase();
 
-    // FILTER KELOMPOK ASAD
     if (currentKelompok === "ASAD") {
       if (currentKelas === "Caberawit Laki-Laki") {
         return matchStatus && jKelompok === "Caberawit" && jGender === "laki-laki";
@@ -352,13 +393,11 @@ function renderPresensiTable() {
       }
     }
 
-    // FILTER REGULER
     const matchKelompok = String(j.Kelompok || "Caberawit").trim().toLowerCase() === String(currentKelompok).trim().toLowerCase();
     let matchKelas = true;
     if (currentKelompok === "Caberawit") {
       matchKelas = String(j.Kelas || "").trim().toLowerCase() === String(currentKelas).trim().toLowerCase();
     }
-    
     return matchStatus && matchKelompok && matchKelas;
   });
 
@@ -367,21 +406,34 @@ function renderPresensiTable() {
 
   const displayTitle = (currentKelompok === "Caberawit" || currentKelompok === "ASAD") ? `${currentKelompok} (${currentKelas})` : currentKelompok;
 
-  const jenisKegiatanEl = document.getElementById("presensi-jenis-kegiatan");
-  const pemateriEl = document.getElementById("presensi-pemateri");
-  const jurnalEl = document.getElementById("presensi-jurnal");
-  const kendalaEl = document.getElementById("presensi-kendala");
-
   const isReadOnly = !currentAdmin;
-  [jenisKegiatanEl, pemateriEl, jurnalEl, kendalaEl].forEach(el => {
+  const inputElements = [
+    document.getElementById("presensi-jenis-kegiatan"),
+    document.getElementById("presensi-pemateri"),
+    document.getElementById("presensi-jurnal"),
+    document.getElementById("presensi-kendala"),
+    document.getElementById("mat-akhlak"),
+    document.getElementById("mat-tilawati"),
+    document.getElementById("mat-bacaan"),
+    document.getElementById("mat-tajwid"),
+    document.getElementById("mat-makna-quran"),
+    document.getElementById("mat-makna-hadist"),
+    document.getElementById("mat-hafalan-dalil"),
+    document.getElementById("mat-hafalan-surat"),
+    document.getElementById("mat-hafalan-doa"),
+    document.getElementById("mat-bcm"),
+    document.getElementById("mat-praktek")
+  ];
+
+  inputElements.forEach(el => {
     if (el) {
       el.disabled = isReadOnly;
       if (isReadOnly) {
         el.classList.add("bg-slate-100", "cursor-not-allowed", "opacity-80");
-        el.classList.remove("bg-slate-50", "focus:bg-white");
+        el.classList.remove("bg-white");
       } else {
         el.classList.remove("bg-slate-100", "cursor-not-allowed", "opacity-80");
-        el.classList.add("bg-slate-50");
+        el.classList.add("bg-white");
       }
     }
   });
@@ -389,16 +441,13 @@ function renderPresensiTable() {
   if (filteredJamaah.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="6" class="px-4 py-6 text-center text-slate-400 italic">
+        <td colspan="${isCaberawit ? 7 : 6}" class="px-4 py-6 text-center text-slate-400 italic">
           Belum ada jamaah yang terdaftar di kelompok <b>${displayTitle}</b>.<br>
           <span class="text-xs text-slate-500">Buka menu <b>Data Jamaah</b> untuk menambahkan jamaah.</span>
         </td>
       </tr>
     `;
-    if (jenisKegiatanEl) jenisKegiatanEl.value = "";
-    if (pemateriEl) pemateriEl.value = "";
-    if (jurnalEl) jurnalEl.value = "";
-    if (kendalaEl) kendalaEl.value = "";
+    inputElements.forEach(el => { if (el) el.value = ""; });
   } else {
     const selectedDateInput = document.getElementById("presensi-date");
     const targetDate = selectedDateInput ? selectedDateInput.value : "";
@@ -408,6 +457,7 @@ function renderPresensiTable() {
     let savedPemateri = "";
     let savedJurnal = "";
     let savedKendala = "";
+    let savedMateriCaberawit = {};
 
     presensiList.forEach(p => {
       if (!p.Tanggal || !p.NamaJamaah) return;
@@ -430,31 +480,63 @@ function renderPresensiTable() {
       if (pKel === String(currentKelompok).trim().toLowerCase() && checkKelas && pDateStr === targetDate) {
         existingStatusMap[String(p.NamaJamaah).trim().toLowerCase()] = {
           status: String(p.StatusPresensi || "Hadir").trim(),
-          keterangan: String(p.Keterangan || "").trim()
+          keterangan: String(p.Keterangan || "").trim(),
+          karakter29: String(p.Karakter29 || p.karakter29 || "Belum").trim()
         };
 
         if (p.JenisKegiatan || p.jenisKegiatan) savedJenisKegiatan = p.JenisKegiatan || p.jenisKegiatan;
         if (p.Pemateri || p.pemateri) savedPemateri = p.Pemateri || p.pemateri;
         if (p.Jurnal || p.jurnal) savedJurnal = p.Jurnal || p.jurnal;
         if (p.Kendala || p.kendala) savedKendala = p.Kendala || p.kendala;
+
+        if (p.MateriCaberawit || p.materiCaberawit) {
+          try {
+            savedMateriCaberawit = typeof p.MateriCaberawit === 'string' ? JSON.parse(p.MateriCaberawit) : (p.MateriCaberawit || p.materiCaberawit);
+          } catch(e) {}
+        }
       }
     });
 
-    if (jenisKegiatanEl) jenisKegiatanEl.value = savedJenisKegiatan;
-    if (pemateriEl) pemateriEl.value = savedPemateri;
-    if (jurnalEl) jurnalEl.value = savedJurnal;
-    if (kendalaEl) kendalaEl.value = savedKendala;
+    if (document.getElementById("presensi-jenis-kegiatan")) document.getElementById("presensi-jenis-kegiatan").value = savedJenisKegiatan;
+    if (document.getElementById("presensi-pemateri")) document.getElementById("presensi-pemateri").value = savedPemateri;
+    if (document.getElementById("presensi-jurnal")) document.getElementById("presensi-jurnal").value = savedJurnal;
+    if (document.getElementById("presensi-kendala")) document.getElementById("presensi-kendala").value = savedKendala;
+
+    // Isi formulir materi caberawit
+    const matKeys = {
+      "mat-akhlak": "akhlak", "mat-tilawati": "tilawati", "mat-bacaan": "bacaan",
+      "mat-tajwid": "tajwid", "mat-makna-quran": "maknaQuran", "mat-makna-hadist": "maknaHadist",
+      "mat-hafalan-dalil": "hafalanDalil", "mat-hafalan-surat": "hafalanSurat",
+      "mat-hafalan-doa": "hafalanDoa", "mat-bcm": "bcm", "mat-praktek": "praktek"
+    };
+    Object.keys(matKeys).forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = savedMateriCaberawit[matKeys[id]] || "";
+    });
 
     const disabledRadio = isReadOnly ? "disabled cursor-not-allowed opacity-80" : "cursor-pointer";
 
     tbody.innerHTML = filteredJamaah.map((j, idx) => {
       const namaKey = String(j.Nama).trim().toLowerCase();
-      const exData = existingStatusMap[namaKey] || { status: "Hadir", keterangan: "" };
+      const exData = existingStatusMap[namaKey] || { status: "Hadir", keterangan: "", karakter29: "Belum" };
       const savedStatus = exData.status;
       const savedKet = exData.keterangan;
+      const savedKarakter = exData.karakter29;
 
       const isIzinChecked = (savedStatus === 'Izin');
       const disabledKet = (isReadOnly || !isIzinChecked) ? "disabled" : "";
+
+      let caberawitExtraTd = "";
+      if (isCaberawit) {
+        caberawitExtraTd = `
+          <td class="px-2 py-3 text-center">
+            <select id="karakter-${idx}" ${isReadOnly ? 'disabled' : ''} class="text-[11px] px-2 py-1 rounded border border-slate-300 bg-white font-semibold ${savedKarakter === 'Sudah' ? 'text-emerald-700 bg-emerald-50' : 'text-slate-600'}">
+              <option value="Belum" ${savedKarakter === 'Belum' ? 'selected' : ''}>Belum</option>
+              <option value="Sudah" ${savedKarakter === 'Sudah' ? 'selected' : ''}>Sudah</option>
+            </select>
+          </td>
+        `;
+      }
 
       return `
         <tr class="bg-white border-b hover:bg-slate-50">
@@ -472,6 +554,7 @@ function renderPresensiTable() {
           <td class="px-3 py-3 text-center">
             <input type="radio" name="presensi-${idx}" value="Alfa" onchange="toggleKetInput(${idx})" ${savedStatus === 'Alfa' ? 'checked' : ''} ${disabledRadio} class="w-4 h-4 text-rose-600 focus:ring-rose-500">
           </td>
+          ${caberawitExtraTd}
           <td class="px-3 py-3">
             <input type="text" id="ket-${idx}" value="${savedKet}" placeholder="${isReadOnly ? '-' : 'Alasan izin...'}" ${disabledKet} class="w-full text-xs px-2 py-1 border rounded bg-slate-50 focus:bg-white focus:ring-1 focus:ring-amber-500 transition-all ${!isIzinChecked ? 'opacity-40' : ''}">
           </td>
@@ -566,10 +649,32 @@ async function submitPresensi() {
   const date = dateInput.value;
   const day = dayInput.value;
 
+  const isCaberawit = (currentKelompok === "Caberawit");
   const jenisKegiatan = document.getElementById("presensi-jenis-kegiatan") ? document.getElementById("presensi-jenis-kegiatan").value : "";
   const pemateri = document.getElementById("presensi-pemateri") ? document.getElementById("presensi-pemateri").value : "";
-  const jurnal = document.getElementById("presensi-jurnal") ? document.getElementById("presensi-jurnal").value : "";
   const kendala = document.getElementById("presensi-kendala") ? document.getElementById("presensi-kendala").value : "";
+
+  let jurnalText = "";
+  let materiCaberawitObj = null;
+
+  if (isCaberawit) {
+    materiCaberawitObj = {
+      akhlak: document.getElementById("mat-akhlak") ? document.getElementById("mat-akhlak").value : "",
+      tilawati: document.getElementById("mat-tilawati") ? document.getElementById("mat-tilawati").value : "",
+      bacaan: document.getElementById("mat-bacaan") ? document.getElementById("mat-bacaan").value : "",
+      tajwid: document.getElementById("mat-tajwid") ? document.getElementById("mat-tajwid").value : "",
+      maknaQuran: document.getElementById("mat-makna-quran") ? document.getElementById("mat-makna-quran").value : "",
+      maknaHadist: document.getElementById("mat-makna-hadist") ? document.getElementById("mat-makna-hadist").value : "",
+      hafalanDalil: document.getElementById("mat-hafalan-dalil") ? document.getElementById("mat-hafalan-dalil").value : "",
+      hafalanSurat: document.getElementById("mat-hafalan-surat") ? document.getElementById("mat-hafalan-surat").value : "",
+      hafalanDoa: document.getElementById("mat-hafalan-doa") ? document.getElementById("mat-hafalan-doa").value : "",
+      bcm: document.getElementById("mat-bcm") ? document.getElementById("mat-bcm").value : "",
+      praktek: document.getElementById("mat-praktek") ? document.getElementById("mat-praktek").value : ""
+    };
+    jurnalText = `Akhlak: ${materiCaberawitObj.akhlak || '-'} | Tilawati: ${materiCaberawitObj.tilawati || '-'} | Bacaan: ${materiCaberawitObj.bacaan || '-'}`;
+  } else {
+    jurnalText = document.getElementById("presensi-jurnal") ? document.getElementById("presensi-jurnal").value : "";
+  }
 
   const jamaahList = Array.isArray(appData.jamaah) ? appData.jamaah : [];
 
@@ -608,6 +713,7 @@ async function submitPresensi() {
   filteredJamaah.forEach((j, idx) => {
     const radios = document.getElementsByName(`presensi-${idx}`);
     const ketInput = document.getElementById(`ket-${idx}`);
+    const karakterSelect = document.getElementById(`karakter-${idx}`);
 
     let selectedStatus = "Hadir";
     for (let r of radios) {
@@ -622,9 +728,11 @@ async function submitPresensi() {
       nama: j.Nama,
       status: selectedStatus,
       keterangan: ketInput ? ketInput.value : "",
+      karakter29: isCaberawit && karakterSelect ? karakterSelect.value : "Belum",
       jenisKegiatan: jenisKegiatan,
       pemateri: pemateri,
-      jurnal: jurnal,
+      jurnal: jurnalText,
+      materiCaberawit: materiCaberawitObj ? JSON.stringify(materiCaberawitObj) : "",
       kendala: kendala,
       admin: currentAdmin ? currentAdmin.nama : "Admin"
     });
@@ -646,6 +754,119 @@ async function submitPresensi() {
   } catch (err) {
     showMessage("Gagal menyimpan presensi.", "error");
   }
+}
+
+// 5. RENDER TABEL MONITORING (1 BULAN TERAKHIR)
+function renderMonitoringTable() {
+  const tbody = document.getElementById("table-monitoring-body");
+  if (!tbody) return;
+
+  const filterSelect = document.getElementById("monitoring-filter-kelompok");
+  const selectedFilter = filterSelect ? filterSelect.value : "Semua";
+
+  const jamaahList = Array.isArray(appData.jamaah) ? appData.jamaah : [];
+  const presensiList = Array.isArray(appData.presensi) ? appData.presensi : [];
+
+  // Hitung rentang 1 bulan terakhir
+  const today = new Date();
+  const oneMonthAgo = new Date();
+  oneMonthAgo.setMonth(today.getMonth() - 1);
+
+  const oneMonthAgoStr = oneMonthAgo.toISOString().split("T")[0];
+  const todayStr = today.toISOString().split("T")[0];
+
+  // Filter presensi 1 bulan terakhir
+  const filteredPresensi = presensiList.filter(p => {
+    if (!p.Tanggal) return false;
+    let pDateStr = (p.Tanggal instanceof Date) ? p.Tanggal.toISOString().split("T")[0] : String(p.Tanggal).split("T")[0].trim();
+    return pDateStr >= oneMonthAgoStr && pDateStr <= todayStr;
+  });
+
+  // Filter daftar jamaah aktif
+  const targetJamaah = jamaahList.filter(j => {
+    const isAktif = String(j.Status || "Aktif").trim().toLowerCase() === "aktif";
+    if (!isAktif) return false;
+    if (selectedFilter === "Semua") return true;
+    return String(j.Kelompok || "").trim().toLowerCase() === selectedFilter.toLowerCase();
+  });
+
+  if (targetJamaah.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9" class="px-4 py-6 text-center text-slate-400 italic">Tidak ada data jamaah pada kelompok ini.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = targetJamaah.map((j, idx) => {
+    const namaKey = String(j.Nama || "").trim().toLowerCase();
+    const isCaberawit = String(j.Kelompok || "").trim() === "Caberawit";
+
+    let countHadir = 0;
+    let countIzin = 0;
+    let countAlfa = 0;
+    let izinReasons = [];
+    let attendedAsad = false;
+    let sudahKarakterCount = 0;
+    let totalCaberawitPertemuan = 0;
+
+    filteredPresensi.forEach(p => {
+      const pNama = String(p.NamaJamaah || "").trim().toLowerCase();
+      if (pNama === namaKey) {
+        const pKel = String(p.Kelompok || "").trim();
+        const st = String(p.StatusPresensi || "Hadir").trim();
+
+        if (pKel === "ASAD") {
+          if (st === "Hadir") attendedAsad = true;
+        } else {
+          if (st === "Hadir") countHadir++;
+          else if (st === "Izin") {
+            countIzin++;
+            if (p.Keterangan && p.Keterangan.trim() !== "") {
+              izinReasons.push(p.Keterangan.trim());
+            }
+          } else if (st === "Alfa") {
+            countAlfa++;
+          }
+
+          if (isCaberawit) {
+            totalCaberawitPertemuan++;
+            const k29 = String(p.Karakter29 || p.karakter29 || "").trim().toLowerCase();
+            if (k29 === "sudah") {
+              sudahKarakterCount++;
+            }
+          }
+        }
+      }
+    });
+
+    const displayKelas = isCaberawit ? `${j.Kelompok} (${j.Kelas || 'A'})` : j.Kelompok;
+    const reasonsText = izinReasons.length > 0 ? izinReasons.join("; ") : "-";
+
+    let karakterStatusBadge = "-";
+    if (isCaberawit) {
+      if (totalCaberawitPertemuan > 0 && sudahKarakterCount > 0) {
+        karakterStatusBadge = `<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">${sudahKarakterCount}/${totalCaberawitPertemuan} Sudah</span>`;
+      } else {
+        karakterStatusBadge = `<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">Belum</span>`;
+      }
+    }
+
+    const asadBadge = attendedAsad
+      ? `<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold"><i class="fa-solid fa-check mr-1"></i>Hadir</span>`
+      : `<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">Tidak/Belum</span>`;
+
+    return `
+      <tr class="bg-white border-b hover:bg-slate-50">
+        <td class="px-3 py-3 text-center font-semibold text-slate-500">${idx + 1}</td>
+        <td class="px-4 py-3 font-semibold text-slate-800">${j.Nama}</td>
+        <td class="px-3 py-3 whitespace-nowrap"><span class="px-2 py-0.5 rounded bg-slate-100 font-medium">${displayKelas}</span></td>
+        <td class="px-2 py-3 text-center font-bold text-emerald-600">${countHadir}</td>
+        <td class="px-2 py-3 text-center font-bold text-amber-600">${countIzin}</td>
+        <td class="px-2 py-3 text-center font-bold text-rose-600">${countAlfa}</td>
+        <td class="px-4 py-3 text-xs text-slate-500 max-w-xs truncate" title="${reasonsText}">${reasonsText}</td>
+        <td class="px-3 py-3 text-center whitespace-nowrap">${asadBadge}</td>
+        <td class="px-3 py-3 text-center whitespace-nowrap">${karakterStatusBadge}</td>
+      </tr>
+    `;
+  }).join("");
 }
 
 function renderJurnalRekap() {
@@ -787,7 +1008,7 @@ function renderJurnalRekap() {
   }).join("");
 }
 
-// 6. RENDER STATISTIK GRAFIK (VIEWER: FULL HISTORY, ADMIN: 1 BULAN DEFAULT & BISA DIUBAH)
+// 7. RENDER STATISTIK GRAFIK (VIEWER: FULL HISTORY, ADMIN: 1 BULAN DEFAULT)
 function initChartDateFilters() {
   const startDateInput = document.getElementById("chart-date-start");
   const endDateInput = document.getElementById("chart-date-end");
