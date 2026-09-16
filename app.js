@@ -1,8 +1,8 @@
 // ==========================================
-// FRONTEND LOGIC & INTEGRASI API WEB MASJID AL HIDAYAH (FINAL REFINED VERSION WITH WORKSHEET & CABERAWIT MONITORING)
+// FRONTEND LOGIC & INTEGRASI REST API KARANGANYAR BARAT
 // ==========================================
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzVcpEWy9osIigdis6aniojmi5EaYarUWUSOjT9mRBkydj6tcEygedtnrRL8RvxgFa_3Q/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx6k1B4aoY4S9NAd3VSCPsWYNAqAe5wimrzAiEDRdIZKkZqChoAQXP-MM_rPNXS1wee/exec";
 
 let appData = {
   pengurus: [],
@@ -10,19 +10,17 @@ let appData = {
   jamaah: [],
   presensi: [],
   kegiatan: [],
-  admins: []
+  admins: [],
+  master_kelompok: [],
+  penyapaan: []
 };
 
 let currentAdmin = null;
 let currentKelompok = "Caberawit";
 let currentKelas = "Caberawit A";
 let activeFormType = null;
-
-let chartInstances = {};
-
-if (typeof ChartDataLabels !== 'undefined') {
-  Chart.register(ChartDataLabels);
-}
+let currentPetaFilter = "all";
+let analyticsPenyapaan = null;
 
 document.addEventListener("DOMContentLoaded", () => {
   const savedAdmin = sessionStorage.getItem("currentAdmin");
@@ -59,12 +57,12 @@ function updateDayLabel() {
   const d = new Date(dateInput.value + "T00:00:00");
   const dayEl = document.getElementById("presensi-day");
   if (dayEl) dayEl.value = days[d.getDay()];
-  
+
   renderPresensiTable();
 }
 
 async function loadAllData() {
-  showMessage("Memuat data dari Google Sheets...", "info");
+  showMessage("Memuat data dari server...", "info");
   try {
     const res = await fetch(`${SCRIPT_URL}?action=get_all_data`);
     const json = await res.json();
@@ -75,8 +73,13 @@ async function loadAllData() {
         jamaah: Array.isArray(json.jamaah) ? json.jamaah : [],
         presensi: Array.isArray(json.presensi) ? json.presensi : [],
         kegiatan: Array.isArray(json.kegiatan) ? json.kegiatan : [],
-        admins: Array.isArray(json.admins) ? json.admins : []
+        admins: Array.isArray(json.admins || json.users) ? (json.admins || json.users) : [],
+        master_kelompok: Array.isArray(json.master_kelompok) ? json.master_kelompok : [],
+        penyapaan: Array.isArray(json.penyapaan) ? json.penyapaan : []
       };
+
+      await loadPenyapaanAnalytics();
+      initJamaahWilayahFilters();
       renderAllViews();
       hideMessage();
     } else {
@@ -88,6 +91,20 @@ async function loadAllData() {
   }
 }
 
+async function loadPenyapaanAnalytics() {
+  try {
+    const res = await fetch(`${SCRIPT_URL}?action=get_penyapaan_analytics`);
+    const json = await res.json();
+    if (json.success) {
+      analyticsPenyapaan = json;
+      const badge = document.getElementById("badge-total-sapaan");
+      if (badge) badge.innerText = json.totalSapaan || 0;
+    }
+  } catch (e) {
+    console.warn("Gagal memuat data analitik penyapaan", e);
+  }
+}
+
 function renderAllViews() {
   renderBerandaKegiatan();
   renderPengurus();
@@ -95,12 +112,7 @@ function renderAllViews() {
   renderJamaah();
   renderPresensiTable();
   renderMonitoringTable();
-  renderJurnalRekap();
-  
-  const rekapSection = document.getElementById("view-rekapitulasi");
-  if (rekapSection && !rekapSection.classList.contains("hidden")) {
-    renderAllCharts();
-  }
+  renderPenyapaanModule();
 }
 
 function switchTab(tabName) {
@@ -125,10 +137,8 @@ function switchTab(tabName) {
 
   if (tabName === "monitoring") {
     renderMonitoringTable();
-  } else if (tabName === "rekapitulasi") {
-    renderAllCharts();
-  } else if (tabName === "jurnal-rekap") {
-    renderJurnalRekap();
+  } else if (tabName === "penyapaan") {
+    renderPenyapaanModule();
   } else if (tabName === "beranda") {
     renderBerandaKegiatan();
   }
@@ -147,7 +157,7 @@ function switchTab(tabName) {
 function selectKelompok(kelompok) {
   currentKelompok = kelompok;
   document.querySelectorAll(".subnav-btn").forEach(b => b.classList.remove("active"));
-  
+
   const idMap = {
     "ASAD": "sub-asad",
     "Caberawit": "sub-caberawit",
@@ -249,16 +259,16 @@ function renderBerandaKegiatan() {
               <i class="fa-solid fa-clock"></i> ${k.Jam || 'WIB'}
             </span>
           </div>
-          <h3 class="font-bold text-slate-800 text-base mb-1">${k.Kegiatan || '-'}</h3>
+          <h3 class="font-bold text-slate-800 text-base mb-1">${k.Kegiatan || k.Nama_Kegiatan || '-'}</h3>
           <p class="text-xs text-slate-600 flex items-center gap-1 mb-2">
             <i class="fa-solid fa-user-tie text-teal-600"></i> <b>Pemateri:</b> ${k.Pemateri || '-'}
           </p>
           <p class="text-xs text-slate-500 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-            ${k.Keterangan || 'Tidak ada catatan tambahan.'}
+            ${k.Keterangan || k.Target_Usia || 'Tidak ada catatan tambahan.'}
           </p>
         </div>
         <div class="admin-only ${currentAdmin ? '' : 'hidden'} flex justify-end pt-2 border-t border-slate-100">
-          <button onclick="deleteRow('Kegiatan', '${k.ID}')" class="text-rose-600 hover:text-rose-800 text-xs font-semibold flex items-center gap-1 p-1">
+          <button onclick="deleteRow('Kegiatan', '${k.ID || k.ID_Kegiatan}')" class="text-rose-600 hover:text-rose-800 text-xs font-semibold flex items-center gap-1 p-1">
             <i class="fa-solid fa-trash"></i> Hapus Agenda
           </button>
         </div>
@@ -302,29 +312,108 @@ function renderInventaris() {
   `).join("");
 }
 
+// =========================================================================
+// SISTEM PILIHAN KELOMPOK PER DESA PADA DATA JAMAAH
+// =========================================================================
+function initJamaahWilayahFilters() {
+  const desaSelect = document.getElementById("jamaah-filter-desa");
+  if (!desaSelect) return;
+
+  const data = Array.isArray(appData.jamaah) ? appData.jamaah : [];
+  const mk = Array.isArray(appData.master_kelompok) ? appData.master_kelompok : [];
+
+  let desas = new Set();
+  data.forEach(j => { if (j.Desa) desas.add(String(j.Desa).trim()); });
+  mk.forEach(m => { if (m.Nama_Desa) desas.add(String(m.Nama_Desa).trim()); });
+
+  if (desas.size === 0) {
+    desas = new Set(["Desa 1", "Desa 2", "Desa 3", "Desa 4"]);
+  }
+
+  desaSelect.innerHTML = `<option value="Semua">Semua Desa</option>` +
+    Array.from(desas).map(d => `<option value="${d}">${d}</option>`).join("");
+
+  onJamaahDesaFilterChange();
+}
+
+function onJamaahDesaFilterChange() {
+  const desaSelect = document.getElementById("jamaah-filter-desa");
+  const kelSelect = document.getElementById("jamaah-filter-kelompok");
+  if (!desaSelect || !kelSelect) return;
+
+  const selectedDesa = desaSelect.value;
+  const data = Array.isArray(appData.jamaah) ? appData.jamaah : [];
+  const mk = Array.isArray(appData.master_kelompok) ? appData.master_kelompok : [];
+
+  let kelompokSet = new Set();
+
+  if (selectedDesa === "Semua") {
+    data.forEach(j => { if (j.KelompokBinaan || j.Nama_Kelompok) kelompokSet.add(String(j.KelompokBinaan || j.Nama_Kelompok).trim()); });
+    mk.forEach(m => { if (m.Nama_Kelompok) kelompokSet.add(String(m.Nama_Kelompok).trim()); });
+  } else {
+    data.forEach(j => {
+      if (String(j.Desa).trim().toLowerCase() === selectedDesa.toLowerCase()) {
+        if (j.KelompokBinaan || j.Nama_Kelompok) kelompokSet.add(String(j.KelompokBinaan || j.Nama_Kelompok).trim());
+      }
+    });
+    mk.forEach(m => {
+      if (String(m.Nama_Desa).trim().toLowerCase() === selectedDesa.toLowerCase()) {
+        if (m.Nama_Kelompok) kelompokSet.add(String(m.Nama_Kelompok).trim());
+      }
+    });
+  }
+
+  kelSelect.innerHTML = `<option value="Semua">Semua Kelompok</option>` +
+    Array.from(kelompokSet).map(k => `<option value="${k}">${k}</option>`).join("");
+
+  renderJamaah();
+}
+
 function renderJamaah() {
   const tbody = document.getElementById("table-jamaah-body");
   if (!tbody) return;
 
   const data = Array.isArray(appData.jamaah) ? appData.jamaah : [];
+  const desaFilter = document.getElementById("jamaah-filter-desa") ? document.getElementById("jamaah-filter-desa").value : "Semua";
+  const kelFilter = document.getElementById("jamaah-filter-kelompok") ? document.getElementById("jamaah-filter-kelompok").value : "Semua";
 
-  tbody.innerHTML = data.map(j => {
-    const kelompok = String(j.Kelompok || "Unassigned").trim();
-    let displayKelas = (kelompok === "Caberawit") ? (j.Kelas || "Caberawit A") : "-";
+  const filtered = data.filter(j => {
+    const jDesa = String(j.Desa || "-").trim();
+    const jKelBinaan = String(j.KelompokBinaan || j.Nama_Kelompok || "-").trim();
+
+    const matchDesa = (desaFilter === "Semua") || (jDesa.toLowerCase() === desaFilter.toLowerCase());
+    const matchKel = (kelFilter === "Semua") || (jKelBinaan.toLowerCase() === kelFilter.toLowerCase());
+
+    return matchDesa && matchKel;
+  });
+
+  const badgeCount = document.getElementById("jamaah-count-badge");
+  if (badgeCount) badgeCount.innerText = `${filtered.length} Jamaah Ditemukan`;
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="11" class="px-4 py-6 text-center text-slate-400 italic">Tidak ada data jamaah pada desa / kelompok yang dipilih.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(j => {
+    const kelompokUsia = String(j.Kelompok || j.Kelas_Usia || "Unassigned").trim();
+    let displayKelas = (kelompokUsia === "Caberawit") ? (j.Kelas || "Caberawit A") : "-";
 
     return `
       <tr class="bg-white border-b hover:bg-slate-50">
-        <td class="px-3 sm:px-4 py-3 text-xs font-mono text-slate-500">${j.ID || '-'}</td>
-        <td class="px-3 sm:px-4 py-3 font-semibold text-slate-800">${j.Nama || '-'}</td>
+        <td class="px-3 sm:px-4 py-3 text-xs font-mono text-slate-500">${j.ID || j.ID_Jamaah || '-'}</td>
+        <td class="px-3 sm:px-4 py-3 font-semibold text-slate-800">${j.Nama || j.Nama_Lengkap || '-'}</td>
+        <td class="px-3 sm:px-4 py-3 text-xs font-semibold text-slate-700">${j.Desa || '-'}</td>
+        <td class="px-3 sm:px-4 py-3 text-xs font-semibold text-slate-900">${j.KelompokBinaan || j.Nama_Kelompok || '-'}</td>
         <td class="px-3 sm:px-4 py-3 whitespace-nowrap">${j.TanggalLahir ? j.TanggalLahir.toString().split("T")[0] : '-'} <span class="text-xs text-emerald-600 font-bold">(${calculateAge(j.TanggalLahir)})</span></td>
-        <td class="px-3 sm:px-4 py-3"><span class="px-2 py-1 rounded bg-teal-50 text-teal-700 font-semibold text-xs">${kelompok}</span></td>
+        <td class="px-3 sm:px-4 py-3"><span class="px-2 py-1 rounded bg-teal-50 text-teal-700 font-semibold text-xs">${kelompokUsia}</span></td>
         <td class="px-3 sm:px-4 py-3"><span class="px-2 py-1 rounded bg-slate-100 text-slate-700 font-semibold text-xs">${displayKelas}</span></td>
         <td class="px-3 sm:px-4 py-3">${j.Gender || '-'}</td>
         <td class="px-3 sm:px-4 py-3">${j.Alamat || '-'}</td>
-        <td class="px-3 sm:px-4 py-3"><span class="px-2 py-1 rounded-full text-xs font-semibold ${j.Status === 'Aktif' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}">${j.Status || 'Aktif'}</span></td>
+        <td class="px-3 sm:px-4 py-3"><span class="px-2 py-1 rounded-full text-xs font-semibold ${j.Status === 'Aktif' || j.Keaktifan === 'Aktif' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}">${j.Status || j.Keaktifan || 'Aktif'}</span></td>
         <td class="px-3 sm:px-4 py-3 text-center admin-only space-x-2 ${currentAdmin ? '' : 'hidden'}">
-          <button onclick="editJamaah('${j.ID}')" class="text-amber-600 hover:text-amber-800 font-semibold p-1"><i class="fa-solid fa-pen-to-square"></i></button>
-          <button onclick="deleteRow('Jamaah', '${j.ID}')" class="text-rose-600 hover:text-rose-800 p-1"><i class="fa-solid fa-trash"></i></button>
+          <button onclick="editJamaah('${j.ID || j.ID_Jamaah}')" class="text-amber-600 hover:text-amber-800 font-semibold p-1"><i class="fa-solid fa-pen-to-square"></i></button>
+          <button onclick="deleteRow('Master_Jamaah', '${j.ID || j.ID_Jamaah}')" class="text-rose-600 hover:text-rose-800 p-1"><i class="fa-solid fa-trash"></i></button>
         </td>
       </tr>
     `;
@@ -334,7 +423,7 @@ function renderJamaah() {
 function renderPresensiTable() {
   const isCaberawit = (currentKelompok === "Caberawit");
   const theadTr = document.getElementById("presensi-table-header");
-  
+
   if (theadTr) {
     if (isCaberawit) {
       theadTr.innerHTML = `
@@ -374,8 +463,8 @@ function renderPresensiTable() {
   const presensiList = Array.isArray(appData.presensi) ? appData.presensi : [];
 
   const filteredJamaah = jamaahList.filter(j => {
-    const matchStatus = String(j.Status || "Aktif").trim().toLowerCase() === "aktif";
-    const jKelompok = String(j.Kelompok || "").trim();
+    const matchStatus = String(j.Status || j.Keaktifan || "Aktif").trim().toLowerCase() === "aktif";
+    const jKelompok = String(j.Kelompok || j.Kelas_Usia || "").trim();
     const jGender = String(j.Gender || "").trim().toLowerCase();
 
     if (currentKelompok === "ASAD") {
@@ -392,7 +481,7 @@ function renderPresensiTable() {
       }
     }
 
-    const matchKelompok = String(j.Kelompok || "Caberawit").trim().toLowerCase() === String(currentKelompok).trim().toLowerCase();
+    const matchKelompok = String(jKelompok || "Caberawit").trim().toLowerCase() === String(currentKelompok).trim().toLowerCase();
     let matchKelas = true;
     if (currentKelompok === "Caberawit") {
       matchKelas = String(j.Kelas || "").trim().toLowerCase() === String(currentKelas).trim().toLowerCase();
@@ -404,38 +493,7 @@ function renderPresensiTable() {
   if (!tbody) return;
 
   const displayTitle = (currentKelompok === "Caberawit" || currentKelompok === "ASAD") ? `${currentKelompok} (${currentKelas})` : currentKelompok;
-
   const isReadOnly = !currentAdmin;
-  const inputElements = [
-    document.getElementById("presensi-jenis-kegiatan"),
-    document.getElementById("presensi-pemateri"),
-    document.getElementById("presensi-jurnal"),
-    document.getElementById("presensi-kendala"),
-    document.getElementById("mat-akhlak"),
-    document.getElementById("mat-tilawati"),
-    document.getElementById("mat-bacaan"),
-    document.getElementById("mat-tajwid"),
-    document.getElementById("mat-makna-quran"),
-    document.getElementById("mat-makna-hadist"),
-    document.getElementById("mat-hafalan-dalil"),
-    document.getElementById("mat-hafalan-surat"),
-    document.getElementById("mat-hafalan-doa"),
-    document.getElementById("mat-bcm"),
-    document.getElementById("mat-praktek")
-  ];
-
-  inputElements.forEach(el => {
-    if (el) {
-      el.disabled = isReadOnly;
-      if (isReadOnly) {
-        el.classList.add("bg-slate-100", "cursor-not-allowed", "opacity-80");
-        el.classList.remove("bg-white");
-      } else {
-        el.classList.remove("bg-slate-100", "cursor-not-allowed", "opacity-80");
-        el.classList.add("bg-white");
-      }
-    }
-  });
 
   if (filteredJamaah.length === 0) {
     tbody.innerHTML = `
@@ -446,33 +504,16 @@ function renderPresensiTable() {
         </td>
       </tr>
     `;
-    inputElements.forEach(el => { if (el) el.value = ""; });
   } else {
     const selectedDateInput = document.getElementById("presensi-date");
     const targetDate = selectedDateInput ? selectedDateInput.value : "";
 
     let existingStatusMap = {};
-    let savedJenisKegiatan = "";
-    let savedPemateri = "";
-    let savedJurnal = "";
-    let savedKendala = "";
-    let savedMateriCaberawit = {};
-
     presensiList.forEach(p => {
       if (!p.Tanggal || !p.NamaJamaah) return;
-
       const pKel = String(p.Kelompok || "").trim().toLowerCase();
       const pKls = String(p.Kelas || "Umum").trim().toLowerCase();
-      let pDateStr = "";
-
-      if (p.Tanggal instanceof Date) {
-        const y = p.Tanggal.getUTCFullYear();
-        const m = String(p.Tanggal.getUTCMonth() + 1).padStart(2, '0');
-        const d = String(p.Tanggal.getUTCDate()).padStart(2, '0');
-        pDateStr = `${y}-${m}-${d}`;
-      } else {
-        pDateStr = String(p.Tanggal).split("T")[0].trim();
-      }
+      let pDateStr = (p.Tanggal instanceof Date) ? p.Tanggal.toISOString().split("T")[0] : String(p.Tanggal).split("T")[0].trim();
 
       const checkKelas = (currentKelompok === "Caberawit" || currentKelompok === "ASAD") ? (pKls === String(currentKelas).trim().toLowerCase()) : true;
 
@@ -482,40 +523,12 @@ function renderPresensiTable() {
           keterangan: String(p.Keterangan || "").trim(),
           karakter29: String(p.Karakter29 || p.karakter29 || "Belum").trim()
         };
-
-        if (p.JenisKegiatan || p.jenisKegiatan) savedJenisKegiatan = p.JenisKegiatan || p.jenisKegiatan;
-        if (p.Pemateri || p.pemateri) savedPemateri = p.Pemateri || p.pemateri;
-        if (p.Jurnal || p.jurnal) savedJurnal = p.Jurnal || p.jurnal;
-        if (p.Kendala || p.kendala) savedKendala = p.Kendala || p.kendala;
-
-        if (p.MateriCaberawit || p.materiCaberawit) {
-          try {
-            savedMateriCaberawit = typeof p.MateriCaberawit === 'string' ? JSON.parse(p.MateriCaberawit) : (p.MateriCaberawit || p.materiCaberawit);
-          } catch(e) {}
-        }
       }
     });
 
-    if (document.getElementById("presensi-jenis-kegiatan")) document.getElementById("presensi-jenis-kegiatan").value = savedJenisKegiatan;
-    if (document.getElementById("presensi-pemateri")) document.getElementById("presensi-pemateri").value = savedPemateri;
-    if (document.getElementById("presensi-jurnal")) document.getElementById("presensi-jurnal").value = savedJurnal;
-    if (document.getElementById("presensi-kendala")) document.getElementById("presensi-kendala").value = savedKendala;
-
-    const matKeys = {
-      "mat-akhlak": "akhlak", "mat-tilawati": "tilawati", "mat-bacaan": "bacaan",
-      "mat-tajwid": "tajwid", "mat-makna-quran": "maknaQuran", "mat-makna-hadist": "maknaHadist",
-      "mat-hafalan-dalil": "hafalanDalil", "mat-hafalan-surat": "hafalanSurat",
-      "mat-hafalan-doa": "hafalanDoa", "mat-bcm": "bcm", "mat-praktek": "praktek"
-    };
-    Object.keys(matKeys).forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.value = savedMateriCaberawit[matKeys[id]] || "";
-    });
-
-    const disabledRadio = isReadOnly ? "disabled cursor-not-allowed opacity-80" : "cursor-pointer";
-
     tbody.innerHTML = filteredJamaah.map((j, idx) => {
-      const namaKey = String(j.Nama).trim().toLowerCase();
+      const nama = j.Nama || j.Nama_Lengkap;
+      const namaKey = String(nama).trim().toLowerCase();
       const exData = existingStatusMap[namaKey] || { status: "Hadir", keterangan: "", karakter29: "Belum" };
       const savedStatus = exData.status;
       const savedKet = exData.keterangan;
@@ -523,6 +536,7 @@ function renderPresensiTable() {
 
       const isIzinChecked = (savedStatus === 'Izin');
       const disabledKet = (isReadOnly || !isIzinChecked) ? "disabled" : "";
+      const disabledRadio = isReadOnly ? "disabled cursor-not-allowed opacity-80" : "cursor-pointer";
 
       let caberawitExtraTd = "";
       if (isCaberawit) {
@@ -540,7 +554,7 @@ function renderPresensiTable() {
         <tr class="bg-white border-b hover:bg-slate-50">
           <td class="px-3 py-3 text-center text-xs font-semibold text-slate-500">${idx + 1}</td>
           <td class="px-4 py-3 font-medium text-slate-800">
-            ${j.Nama}
+            ${nama}
             ${existingStatusMap[namaKey] ? `<span class="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold border border-emerald-200">Tersimpan</span>` : ''}
           </td>
           <td class="px-3 py-3 text-center">
@@ -603,21 +617,11 @@ function updateRekapHarian() {
     const pKls = String(p.Kelas || "Umum").trim().toLowerCase();
     const pKlsTarget = String(currentKelas).trim().toLowerCase();
 
-    let pDateStr = "";
-    if (p.Tanggal instanceof Date) {
-      const y = p.Tanggal.getUTCFullYear();
-      const m = String(p.Tanggal.getUTCMonth() + 1).padStart(2, '0');
-      const d = String(p.Tanggal.getUTCDate()).padStart(2, '0');
-      pDateStr = `${y}-${m}-${d}`;
-    } else {
-      pDateStr = String(p.Tanggal).split("T")[0].trim();
-    }
-
+    let pDateStr = (p.Tanggal instanceof Date) ? p.Tanggal.toISOString().split("T")[0] : String(p.Tanggal).split("T")[0].trim();
     const checkKelas = (currentKelompok === "Caberawit" || currentKelompok === "ASAD") ? (pKls === pKlsTarget) : true;
 
     if (pKel === pKelTarget && checkKelas && pDateStr === targetDate) {
-      const uniqueKey = String(p.NamaJamaah).trim().toLowerCase();
-      latestPresensiMap[uniqueKey] = String(p.StatusPresensi || "Hadir").trim();
+      latestPresensiMap[String(p.NamaJamaah).trim().toLowerCase()] = String(p.StatusPresensi || "Hadir").trim();
     }
   });
 
@@ -630,7 +634,7 @@ function updateRekapHarian() {
   if (document.getElementById("stat-hadir")) document.getElementById("stat-hadir").innerText = h;
   if (document.getElementById("stat-izin")) document.getElementById("stat-izin").innerText = i;
   if (document.getElementById("stat-alfa")) document.getElementById("stat-alfa").innerText = a;
-  
+
   if (document.getElementById("rekap-mingguan-title")) {
     const displayTitle = (currentKelompok === "Caberawit" || currentKelompok === "ASAD") ? `${currentKelompok} (${currentKelas})` : currentKelompok;
     document.getElementById("rekap-mingguan-title").innerHTML = `<i class="fa-solid fa-calendar-day mr-2"></i> Rekapan Presensi Hari Ini (${targetDate}): ${displayTitle}`;
@@ -639,15 +643,15 @@ function updateRekapHarian() {
 
 async function submitPresensi() {
   if (!currentAdmin) return alert("Akses Admin diperlukan untuk menyimpan presensi!");
-  
+
   const dateInput = document.getElementById("presensi-date");
   const dayInput = document.getElementById("presensi-day");
   if (!dateInput || !dayInput) return;
 
   const date = dateInput.value;
   const day = dayInput.value;
-
   const isCaberawit = (currentKelompok === "Caberawit");
+
   const jenisKegiatan = document.getElementById("presensi-jenis-kegiatan") ? document.getElementById("presensi-jenis-kegiatan").value : "";
   const pemateri = document.getElementById("presensi-pemateri") ? document.getElementById("presensi-pemateri").value : "";
   const kendala = document.getElementById("presensi-kendala") ? document.getElementById("presensi-kendala").value : "";
@@ -669,61 +673,45 @@ async function submitPresensi() {
       bcm: document.getElementById("mat-bcm") ? document.getElementById("mat-bcm").value : "",
       praktek: document.getElementById("mat-praktek") ? document.getElementById("mat-praktek").value : ""
     };
-    jurnalText = `Akhlak: ${materiCaberawitObj.akhlak || '-'} | Tilawati: ${materiCaberawitObj.tilawati || '-'} | Bacaan: ${materiCaberawitObj.bacaan || '-'}`;
+    jurnalText = `Akhlak: ${materiCaberawitObj.akhlak || '-'} | Tilawati: ${materiCaberawitObj.tilawati || '-'}`;
   } else {
     jurnalText = document.getElementById("presensi-jurnal") ? document.getElementById("presensi-jurnal").value : "";
   }
 
   const jamaahList = Array.isArray(appData.jamaah) ? appData.jamaah : [];
-
   const filteredJamaah = jamaahList.filter(j => {
-    const matchStatus = String(j.Status || "Aktif").trim().toLowerCase() === "aktif";
-    const jKelompok = String(j.Kelompok || "").trim();
+    const matchStatus = String(j.Status || j.Keaktifan || "Aktif").trim().toLowerCase() === "aktif";
+    const jKelompok = String(j.Kelompok || j.Kelas_Usia || "").trim();
     const jGender = String(j.Gender || "").trim().toLowerCase();
 
     if (currentKelompok === "ASAD") {
-      if (currentKelas === "Caberawit Laki-Laki") {
-        return matchStatus && jKelompok === "Caberawit" && jGender === "laki-laki";
-      } else if (currentKelas === "Caberawit Perempuan") {
-        return matchStatus && jKelompok === "Caberawit" && jGender === "perempuan";
-      } else if (currentKelas === "Laki-Laki") {
-        const isAdultGroup = ["Pra Remaja", "Remaja", "Muda-Mudi", "Bapak-Bapak"].includes(jKelompok);
-        return matchStatus && isAdultGroup && jGender === "laki-laki";
-      } else if (currentKelas === "Perempuan") {
-        const isAdultGroup = ["Pra Remaja", "Remaja", "Muda-Mudi", "Ibu-Ibu"].includes(jKelompok);
-        return matchStatus && isAdultGroup && jGender === "perempuan";
-      }
+      if (currentKelas === "Caberawit Laki-Laki") return matchStatus && jKelompok === "Caberawit" && jGender === "laki-laki";
+      if (currentKelas === "Caberawit Perempuan") return matchStatus && jKelompok === "Caberawit" && jGender === "perempuan";
+      if (currentKelas === "Laki-Laki") return matchStatus && ["Pra Remaja", "Remaja", "Muda-Mudi", "Bapak-Bapak"].includes(jKelompok) && jGender === "laki-laki";
+      if (currentKelas === "Perempuan") return matchStatus && ["Pra Remaja", "Remaja", "Muda-Mudi", "Ibu-Ibu"].includes(jKelompok) && jGender === "perempuan";
     }
 
-    const matchKelompok = String(j.Kelompok || "Caberawit").trim().toLowerCase() === String(currentKelompok).trim().toLowerCase();
-    let matchKelas = true;
-    if (currentKelompok === "Caberawit") {
-      matchKelas = String(j.Kelas || "").trim().toLowerCase() === String(currentKelas).trim().toLowerCase();
-    }
+    const matchKelompok = String(jKelompok || "Caberawit").trim().toLowerCase() === String(currentKelompok).trim().toLowerCase();
+    let matchKelas = (currentKelompok === "Caberawit") ? (String(j.Kelas || "").trim().toLowerCase() === String(currentKelas).trim().toLowerCase()) : true;
     return matchStatus && matchKelompok && matchKelas;
   });
 
-  if (filteredJamaah.length === 0) {
-    return alert("Tidak ada jamaah di kelompok ini untuk disimpan presensinya.");
-  }
+  if (filteredJamaah.length === 0) return alert("Tidak ada jamaah untuk disimpan.");
 
-  const records = [];
-  filteredJamaah.forEach((j, idx) => {
+  const records = filteredJamaah.map((j, idx) => {
     const radios = document.getElementsByName(`presensi-${idx}`);
     const ketInput = document.getElementById(`ket-${idx}`);
     const karakterSelect = document.getElementById(`karakter-${idx}`);
 
     let selectedStatus = "Hadir";
-    for (let r of radios) {
-      if (r.checked) selectedStatus = r.value;
-    }
+    for (let r of radios) { if (r.checked) selectedStatus = r.value; }
 
-    records.push({
+    return {
       kelompok: currentKelompok,
       kelas: (currentKelompok === "Caberawit" || currentKelompok === "ASAD") ? currentKelas : "Umum",
       tanggal: date,
       hari: day,
-      nama: j.Nama,
+      nama: j.Nama || j.Nama_Lengkap,
       status: selectedStatus,
       keterangan: ketInput ? ketInput.value : "",
       karakter29: isCaberawit && karakterSelect ? karakterSelect.value : "Belum",
@@ -733,10 +721,10 @@ async function submitPresensi() {
       materiCaberawit: materiCaberawitObj ? JSON.stringify(materiCaberawitObj) : "",
       kendala: kendala,
       admin: currentAdmin ? currentAdmin.nama : "Admin"
-    });
+    };
   });
 
-  showMessage("Menyimpan data presensi & jurnal...", "info");
+  showMessage("Menyimpan presensi...", "info");
   try {
     const res = await fetch(SCRIPT_URL, {
       method: "POST",
@@ -744,7 +732,7 @@ async function submitPresensi() {
     });
     const json = await res.json();
     if (json.success) {
-      showMessage(`Presensi berhasil diperbarui oleh ${currentAdmin.nama}!`, "success");
+      showMessage("Presensi berhasil diperbarui!", "success");
       await loadAllData();
     } else {
       showMessage("Gagal menyimpan: " + json.error, "error");
@@ -754,7 +742,6 @@ async function submitPresensi() {
   }
 }
 
-// 5. INISIALISASI & FILTER MONITORING KEHADIRAN (RENTANG WAKTU)
 function initMonitoringDateFilters() {
   const startDateInput = document.getElementById("monitoring-date-start");
   const endDateInput = document.getElementById("monitoring-date-end");
@@ -770,7 +757,7 @@ function initMonitoringDateFilters() {
           const y = d.getFullYear();
           const m = String(d.getMonth() + 1).padStart(2, '0');
           const day = String(d.getDate()).padStart(2, '0');
-          return `${y}-${m}-${d}`;
+          return `${y}-${m}-${day}`;
         };
 
         startDateInput.value = formatDate(oneMonthAgo);
@@ -805,23 +792,20 @@ function renderMonitoringTable() {
   const jamaahList = Array.isArray(appData.jamaah) ? appData.jamaah : [];
   const presensiList = Array.isArray(appData.presensi) ? appData.presensi : [];
 
-  // Filter presensi berdasarkan rentang tanggal yang dipilih
   const filteredPresensi = presensiList.filter(p => {
     if (!p.Tanggal) return false;
     let pDateStr = (p.Tanggal instanceof Date) ? p.Tanggal.toISOString().split("T")[0] : String(p.Tanggal).split("T")[0].trim();
-    
     if (startDateVal && pDateStr < startDateVal) return false;
     if (endDateVal && pDateStr > endDateVal) return false;
     return true;
   });
 
-  // Filter daftar jamaah aktif
   const targetJamaah = jamaahList.filter(j => {
-    const isAktif = String(j.Status || "Aktif").trim().toLowerCase() === "aktif";
+    const isAktif = String(j.Status || j.Keaktifan || "Aktif").trim().toLowerCase() === "aktif";
     if (!isAktif) return false;
     if (selectedFilter === "Semua") return true;
 
-    const jKel = String(j.Kelompok || "").trim();
+    const jKel = String(j.Kelompok || j.Kelas_Usia || "").trim();
     const jKls = String(j.Kelas || "").trim();
 
     if (selectedFilter === "Caberawit") {
@@ -834,17 +818,16 @@ function renderMonitoringTable() {
   });
 
   if (targetJamaah.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9" class="px-4 py-6 text-center text-slate-400 italic">Tidak ada data jamaah pada kelompok/kelas ini.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" class="px-4 py-6 text-center text-slate-400 italic">Tidak ada data jamaah pada filter ini.</td></tr>`;
     return;
   }
 
   tbody.innerHTML = targetJamaah.map((j, idx) => {
-    const namaKey = String(j.Nama || "").trim().toLowerCase();
-    const isCaberawit = String(j.Kelompok || "").trim().toLowerCase() === "caberawit";
+    const nama = j.Nama || j.Nama_Lengkap;
+    const namaKey = String(nama || "").trim().toLowerCase();
+    const isCaberawit = String(j.Kelompok || j.Kelas_Usia || "").trim().toLowerCase() === "caberawit";
 
-    let countHadir = 0;
-    let countIzin = 0;
-    let countAlfa = 0;
+    let countHadir = 0, countIzin = 0, countAlfa = 0;
     let izinReasons = [];
     let attendedAsad = false;
     let sudahKarakterCount = 0;
@@ -862,34 +845,27 @@ function renderMonitoringTable() {
           if (st === "Hadir") countHadir++;
           else if (st === "Izin") {
             countIzin++;
-            if (p.Keterangan && p.Keterangan.trim() !== "") {
-              izinReasons.push(p.Keterangan.trim());
-            }
+            if (p.Keterangan && p.Keterangan.trim() !== "") izinReasons.push(p.Keterangan.trim());
           } else if (st === "Alfa") {
             countAlfa++;
           }
 
           if (isCaberawit) {
             totalCaberawitPertemuan++;
-            const k29 = String(p.Karakter29 || p.karakter29 || "").trim().toLowerCase();
-            if (k29 === "sudah") {
-              sudahKarakterCount++;
-            }
+            if (String(p.Karakter29 || p.karakter29 || "").trim().toLowerCase() === "sudah") sudahKarakterCount++;
           }
         }
       }
     });
 
-    const displayKelas = isCaberawit ? `${j.Kelompok} (${j.Kelas || 'Caberawit A'})` : j.Kelompok;
+    const displayKelas = isCaberawit ? `${j.Kelompok || 'Caberawit'} (${j.Kelas || 'Caberawit A'})` : (j.Kelompok || j.Kelas_Usia);
     const reasonsText = izinReasons.length > 0 ? izinReasons.join("; ") : "-";
 
     let karakterStatusBadge = "-";
     if (isCaberawit) {
-      if (totalCaberawitPertemuan > 0 && sudahKarakterCount > 0) {
-        karakterStatusBadge = `<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">${sudahKarakterCount}/${totalCaberawitPertemuan} Sudah</span>`;
-      } else {
-        karakterStatusBadge = `<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">Belum</span>`;
-      }
+      karakterStatusBadge = (totalCaberawitPertemuan > 0 && sudahKarakterCount > 0)
+        ? `<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">${sudahKarakterCount}/${totalCaberawitPertemuan} Sudah</span>`
+        : `<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">Belum</span>`;
     }
 
     const asadBadge = attendedAsad
@@ -899,7 +875,7 @@ function renderMonitoringTable() {
     return `
       <tr class="bg-white border-b hover:bg-slate-50">
         <td class="px-3 py-3 text-center font-semibold text-slate-500">${idx + 1}</td>
-        <td class="px-4 py-3 font-semibold text-slate-800">${j.Nama}</td>
+        <td class="px-4 py-3 font-semibold text-slate-800">${nama}</td>
         <td class="px-3 py-3 whitespace-nowrap"><span class="px-2 py-0.5 rounded bg-slate-100 font-medium">${displayKelas}</span></td>
         <td class="px-2 py-3 text-center font-bold text-emerald-600">${countHadir}</td>
         <td class="px-2 py-3 text-center font-bold text-amber-600">${countIzin}</td>
@@ -912,795 +888,198 @@ function renderMonitoringTable() {
   }).join("");
 }
 
-// FUNGSI GENERASI LEMBAR KERJA FORMAT MATRIKS MINGGUAN & CETAK (TABEL MATERI TERPISAH + KENDALA KOLOM SENDIRI)
-function downloadLembarKerja() {
-  const filterSelect = document.getElementById("monitoring-filter-kelompok");
-  const selectedFilter = filterSelect ? filterSelect.value : "Semua";
-
-  const startDateInput = document.getElementById("monitoring-date-start");
-  const endDateInput = document.getElementById("monitoring-date-end");
-  const startDateVal = startDateInput ? startDateInput.value : "";
-  const endDateVal = endDateInput ? endDateInput.value : "";
-
-  const jamaahList = Array.isArray(appData.jamaah) ? appData.jamaah : [];
-  const presensiList = Array.isArray(appData.presensi) ? appData.presensi : [];
-
-  // 1. Filter Jamaah Target
-  const targetJamaah = jamaahList.filter(j => {
-    const isAktif = String(j.Status || "Aktif").trim().toLowerCase() === "aktif";
-    if (!isAktif) return false;
-    if (selectedFilter === "Semua") return true;
-
-    const jKel = String(j.Kelompok || "").trim();
-    const jKls = String(j.Kelas || "").trim();
-
-    if (selectedFilter === "Caberawit") {
-      return jKel.toLowerCase() === "caberawit";
-    } else if (selectedFilter.startsWith("Caberawit ")) {
-      return jKel.toLowerCase() === "caberawit" && jKls.toLowerCase() === selectedFilter.toLowerCase();
-    } else {
-      return jKel.toLowerCase() === selectedFilter.toLowerCase();
-    }
+// =========================================================================
+// MODUL PENYAPAAN KEGIATAN (PENGGANTI REKAP JURNAL & STATISTIK)
+// =========================================================================
+function switchPenyapaanSubTab(subTabName) {
+  ["status-peta", "rekap-riwayat", "input-sapaan"].forEach(name => {
+    const el = document.getElementById(`subtab-${name}`);
+    const btn = document.getElementById(`subtab-btn-${name}`);
+    if (el) el.classList.add("hidden");
+    if (btn) btn.classList.remove("active");
   });
 
-  const totalL = targetJamaah.filter(j => {
-    const g = String(j.Gender || "").trim().toLowerCase();
-    return g === "laki-laki" || g === "l";
-  }).length;
-  const totalP = targetJamaah.filter(j => {
-    const g = String(j.Gender || "").trim().toLowerCase();
-    return g === "perempuan" || g === "p";
-  }).length;
-  const totalJamaah = targetJamaah.length;
-
-  // 2. Filter Presensi Target
-  const filteredPresensi = presensiList.filter(p => {
-    if (!p.Tanggal) return false;
-    let pDateStr = (p.Tanggal instanceof Date) ? p.Tanggal.toISOString().split("T")[0] : String(p.Tanggal).split("T")[0].trim();
-    if (startDateVal && pDateStr < startDateVal) return false;
-    if (endDateVal && pDateStr > endDateVal) return false;
-
-    const pKel = String(p.Kelompok || "").trim();
-    const pKls = String(p.Kelas || "").trim();
-
-    if (selectedFilter === "Semua") return true;
-    if (selectedFilter === "Caberawit") return pKel.toLowerCase() === "caberawit";
-    if (selectedFilter.startsWith("Caberawit ")) {
-      return pKel.toLowerCase() === "caberawit" && pKls.toLowerCase() === selectedFilter.toLowerCase();
-    }
-    return pKel.toLowerCase() === selectedFilter.toLowerCase();
-  });
-
-  // 3. Tentukan Tanggal Acuan
-  let baseDate = startDateVal ? new Date(startDateVal + "T00:00:00") : null;
-  if (!baseDate) {
-    const dates = filteredPresensi.map(p => {
-      return (p.Tanggal instanceof Date) ? p.Tanggal.toISOString().split("T")[0] : String(p.Tanggal).split("T")[0].trim();
-    }).sort();
-    baseDate = dates.length > 0 ? new Date(dates[0] + "T00:00:00") : new Date();
-  }
-
-  const daysList = [
-    { name: "Senin", dayNum: 1 },
-    { name: "Selasa", dayNum: 2 },
-    { name: "Rabu", dayNum: 3 },
-    { name: "Kamis", dayNum: 4 },
-    { name: "Jumat", dayNum: 5 },
-    { name: "Sabtu", dayNum: 6 },
-    { name: "Minggu", dayNum: 0 }
-  ];
-
-  let dailyMap = {};
-  let journalsList = [];
-
-  filteredPresensi.forEach(p => {
-    let pDateStr = (p.Tanggal instanceof Date) ? p.Tanggal.toISOString().split("T")[0] : String(p.Tanggal).split("T")[0].trim();
-    const st = String(p.StatusPresensi || "Hadir").trim();
-    const pNama = String(p.NamaJamaah || "").trim().toLowerCase();
-
-    const matchJ = targetJamaah.find(j => String(j.Nama || "").trim().toLowerCase() === pNama);
-    const gender = matchJ ? String(matchJ.Gender || "").trim().toLowerCase() : "";
-
-    if (!dailyMap[pDateStr]) {
-      dailyMap[pDateStr] = { L: 0, P: 0, total: 0 };
-    }
-
-    if (st === "Hadir") {
-      if (gender === "laki-laki" || gender === "l") {
-        dailyMap[pDateStr].L++;
-      } else {
-        dailyMap[pDateStr].P++;
-      }
-      dailyMap[pDateStr].total++;
-    }
-
-    if (!journalsList.find(item => item.tanggal === pDateStr)) {
-      journalsList.push({
-        tanggal: pDateStr,
-        hari: p.Hari || p.hari || "-",
-        pemateri: p.Pemateri || p.pemateri || "-",
-        jurnal: p.Jurnal || p.jurnal || "-",
-        kendala: p.Kendala || p.kendala || "-",
-        materiDetail: p.MateriCaberawit || p.materiCaberawit || null
-      });
-    }
-  });
-
-  journalsList.sort((a, b) => a.tanggal.localeCompare(b.tanggal));
-
-  function getWeekIndex(dateStr) {
-    const cur = new Date(dateStr + "T00:00:00");
-    const diffDays = Math.floor((cur - baseDate) / (1000 * 60 * 60 * 24));
-    if (diffDays < 0) return 0;
-    const w = Math.floor(diffDays / 7);
-    return Math.min(w, 4);
-  }
-
-  let matrix = Array(7).fill(null).map(() => Array(5).fill(null));
-  let weekTotals = [0, 0, 0, 0, 0];
-  let weekDaysCount = [0, 0, 0, 0, 0];
-
-  Object.keys(dailyMap).forEach(dateStr => {
-    const d = new Date(dateStr + "T00:00:00");
-    const dayOfWeek = d.getDay();
-    const dayRowIdx = daysList.findIndex(item => item.dayNum === dayOfWeek);
-    const weekIdx = getWeekIndex(dateStr);
-
-    if (dayRowIdx !== -1 && weekIdx >= 0 && weekIdx < 5) {
-      matrix[dayRowIdx][weekIdx] = dailyMap[dateStr];
-      weekTotals[weekIdx] += dailyMap[dateStr].total;
-      weekDaysCount[weekIdx]++;
-    }
-  });
-
-  const isCaberawitScope = selectedFilter.toLowerCase().includes("caberawit");
-  const printWindow = window.open('', '_blank');
-
-  let htmlContent = `
-    <!DOCTYPE html>
-    <html lang="id">
-    <head>
-      <meta charset="UTF-8">
-      <title>Lembar Kerja Presensi & Materi - ${selectedFilter}</title>
-      <style>
-        @page { size: landscape; margin: 8mm; }
-        body { font-family: Arial, sans-serif; color: #1e293b; margin: 15px; font-size: 10px; line-height: 1.2; }
-        .header-box { border-bottom: 2px solid #0f766e; padding-bottom: 6px; margin-bottom: 10px; }
-        .header-box h1 { margin: 0; font-size: 15px; color: #0f766e; text-transform: uppercase; }
-        .header-box p { margin: 2px 0; color: #475569; font-size: 10px; }
-        .summary-badge-container { display: flex; gap: 8px; margin-bottom: 10px; }
-        .badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; border: 1px solid #cbd5e1; background: #f8fafc; font-size: 10px; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
-        th, td { border: 1px solid #94a3b8; padding: 4px 6px; text-align: center; word-break: break-word; }
-        th { background-color: #f1f5f9; color: #0f172a; font-weight: bold; font-size: 9px; text-transform: uppercase; }
-        .day-label { text-align: left; font-weight: bold; background-color: #f8fafc; }
-        .avg-row { font-weight: bold; background-color: #e2e8f0; }
-        .cell-data { font-size: 9px; }
-        .section-title { font-size: 11px; font-weight: bold; color: #0f766e; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px; margin-top: 12px; margin-bottom: 6px; text-transform: uppercase; }
-        .td-left { text-align: left !important; }
-        @media print {
-          body { margin: 0; }
-          .no-print { display: none; }
-          button { display: none; }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="no-print" style="margin-bottom: 12px;">
-        <button onclick="window.print()" style="background:#0f766e;color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:bold;font-size:11px;">
-          🖨️ Cetak / Simpan sebagai PDF (Lanskap)
-        </button>
-      </div>
-
-      <div class="header-box">
-        <h1>LEMBAR KERJA PRESENSI & CAPAIAN PEMBELAJARAN</h1>
-        <p><b>Masjid Al Hidayah</b> | Kelompok/Kelas: <b>${selectedFilter}</b> | Periode: <b>${startDateVal || 'Awal'} s/d ${endDateVal || 'Akhir'}</b></p>
-      </div>
-
-      <!-- Ringkasan Jumlah Jamaah -->
-      <div class="summary-badge-container">
-        <div class="badge">Laki-Laki (L): ${totalL} Org</div>
-        <div class="badge">Perempuan (P): ${totalP} Org</div>
-        <div class="badge" style="background:#ccfbf1;border-color:#5eead4;color:#0f766e;">Total Jamaah: ${totalJamaah} Org</div>
-      </div>
-
-      <!-- Tabel Kehadiran Mingguan -->
-      <table>
-        <thead>
-          <tr>
-            <th style="width: 12%;">HARI</th>
-            <th style="width: 17.6%;">MINGGU 1</th>
-            <th style="width: 17.6%;">MINGGU 2</th>
-            <th style="width: 17.6%;">MINGGU 3</th>
-            <th style="width: 17.6%;">MINGGU 4</th>
-            <th style="width: 17.6%;">MINGGU 5</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${daysList.map((day, rIdx) => `
-            <tr>
-              <td class="day-label">${day.name}</td>
-              ${[0, 1, 2, 3, 4].map(wIdx => {
-                const cell = matrix[rIdx][wIdx];
-                if (cell) {
-                  return `
-                    <td class="cell-data">
-                      <b>Tot: ${cell.total}</b> | <span>L: ${cell.L} | P: ${cell.P}</span>
-                    </td>
-                  `;
-                }
-                return `<td style="color:#cbd5e1;">-</td>`;
-              }).join("")}
-            </tr>
-          `).join("")}
-
-          <tr class="avg-row">
-            <td class="day-label" style="text-align:center;">RATA-RATA</td>
-            ${[0, 1, 2, 3, 4].map(wIdx => {
-              const daysCount = weekDaysCount[wIdx];
-              if (daysCount > 0 && totalJamaah > 0) {
-                const avgNum = (weekTotals[wIdx] / daysCount).toFixed(1);
-                const avgPct = ((avgNum / totalJamaah) * 100).toFixed(1);
-                return `<td>${avgNum} Org (${avgPct}%)</td>`;
-              }
-              return `<td>-</td>`;
-            }).join("")}
-          </tr>
-        </tbody>
-      </table>
-
-      <!-- Tabel Terpisah Capaian Materi & Kendala KBM -->
-      <div class="section-title">Rekapitulasi Capaian Materi & Kendala KBM</div>
-
-      ${journalsList.length === 0 ? `
-        <p style="color:#94a3b8;font-style:italic;">Belum ada catatan materi pembelajaran pada periode ini.</p>
-      ` : `
-        <table>
-          <thead>
-            ${isCaberawitScope ? `
-              <tr>
-                <th style="width: 8%;">Tgl & Hari</th>
-                <th style="width: 8%;">Pemateri</th>
-                <th style="width: 7%;">Akhlakul Karimah</th>
-                <th style="width: 7%;">Peraga Tilawati</th>
-                <th style="width: 7%;">Bacaan</th>
-                <th style="width: 6%;">Tajwid</th>
-                <th style="width: 7%;">Makna Al-Qur'an</th>
-                <th style="width: 7%;">Makna Al-Hadist</th>
-                <th style="width: 6%;">Hafalan Dalil</th>
-                <th style="width: 6%;">Hafalan Surat</th>
-                <th style="width: 6%;">Hafalan Doa</th>
-                <th style="width: 5%;">BCM</th>
-                <th style="width: 6%;">Praktek</th>
-                <th style="width: 14%; background-color:#fee2e2; color:#991b1b;">Kendala KBM</th>
-              </tr>
-            ` : `
-              <tr>
-                <th style="width: 12%;">Tgl & Hari</th>
-                <th style="width: 15%;">Pemateri</th>
-                <th style="width: 48%;">Capaian Materi / Jurnal</th>
-                <th style="width: 25%; background-color:#fee2e2; color:#991b1b;">Kendala KBM</th>
-              </tr>
-            `}
-          </thead>
-          <tbody>
-            ${journalsList.map(j => {
-              if (isCaberawitScope) {
-                let m = {};
-                try {
-                  m = typeof j.materiDetail === 'string' ? JSON.parse(j.materiDetail) : (j.materiDetail || {});
-                } catch(e) {
-                  m = {};
-                }
-
-                return `
-                  <tr>
-                    <td><b>${j.hari}</b><br><span style="color:#64748b;font-size:8px;">${j.tanggal}</span></td>
-                    <td>${j.pemateri}</td>
-                    <td class="td-left">${m.akhlak || '-'}</td>
-                    <td class="td-left">${m.tilawati || '-'}</td>
-                    <td class="td-left">${m.bacaan || '-'}</td>
-                    <td class="td-left">${m.tajwid || '-'}</td>
-                    <td class="td-left">${m.maknaQuran || '-'}</td>
-                    <td class="td-left">${m.maknaHadist || '-'}</td>
-                    <td class="td-left">${m.hafalanDalil || '-'}</td>
-                    <td class="td-left">${m.hafalanSurat || '-'}</td>
-                    <td class="td-left">${m.hafalanDoa || '-'}</td>
-                    <td class="td-left">${m.bcm || '-'}</td>
-                    <td class="td-left">${m.praktek || '-'}</td>
-                    <td class="td-left" style="background:#fff1f2;color:#9f1239;">${j.kendala || '-'}</td>
-                  </tr>
-                `;
-              } else {
-                return `
-                  <tr>
-                    <td><b>${j.hari}</b><br><span style="color:#64748b;font-size:8px;">${j.tanggal}</span></td>
-                    <td>${j.pemateri}</td>
-                    <td class="td-left">${j.jurnal || '-'}</td>
-                    <td class="td-left" style="background:#fff1f2;color:#9f1239;">${j.kendala || '-'}</td>
-                  </tr>
-                `;
-              }
-            }).join("")}
-          </tbody>
-        </table>
-      `}
-
-      <!-- Tanda Tangan Pengesahan -->
-      <div style="margin-top:20px;display:flex;justify-content:space-between;text-align:center;font-size:10px;page-break-inside:avoid;">
-        <div>
-          <p>Mengetahui,</p>
-          <p style="margin-top:40px;font-weight:bold;">Ketua Pengurus</p>
-        </div>
-        <div>
-          <p>Dicetak Pada: ${new Date().toLocaleDateString('id-ID')}</p>
-          <p style="margin-top:40px;font-weight:bold;">Pengajar / Admin</p>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
-
-  printWindow.document.open();
-  printWindow.document.write(htmlContent);
-  printWindow.document.close();
+  const activeEl = document.getElementById(`subtab-${subTabName}`);
+  const activeBtn = document.getElementById(`subtab-btn-${subTabName}`);
+  if (activeEl) activeEl.classList.remove("hidden");
+  if (activeBtn) activeBtn.classList.add("active");
 }
-function renderJurnalRekap() {
-  const container = document.getElementById("jurnal-cards-wrapper");
-  if (!container) return;
 
-  const presensiList = Array.isArray(appData.presensi) ? appData.presensi : [];
+function renderPenyapaanModule() {
+  if (!analyticsPenyapaan) return;
 
-  const classConfigs = [
-    { kelompok: "ASAD", kelas: "Caberawit Laki-Laki", title: "ASAD - Caberawit Laki-Laki" },
-    { kelompok: "ASAD", kelas: "Caberawit Perempuan", title: "ASAD - Caberawit Perempuan" },
-    { kelompok: "ASAD", kelas: "Laki-Laki", title: "ASAD - Laki-Laki (Pra Remaja - Bapak)" },
-    { kelompok: "ASAD", kelas: "Perempuan", title: "ASAD - Perempuan (Pra Remaja - Ibu)" },
-    { kelompok: "Caberawit", kelas: "Caberawit A", title: "Caberawit - Caberawit A" },
-    { kelompok: "Caberawit", kelas: "Caberawit B", title: "Caberawit - Caberawit B" },
-    { kelompok: "Caberawit", kelas: "Caberawit C", title: "Caberawit - Caberawit C" },
-    { kelompok: "Caberawit", kelas: "Caberawit D", title: "Caberawit - Caberawit D" },
-    { kelompok: "Pra Remaja", kelas: "Umum", title: "Pra Remaja (SMP)" },
-    { kelompok: "Remaja", kelas: "Umum", title: "Remaja (SMA)" },
-    { kelompok: "Muda-Mudi", kelas: "Umum", title: "Muda-Mudi" },
-    { kelompok: "Bapak-Bapak", kelas: "Umum", title: "Bapak-Bapak" },
-    { kelompok: "Ibu-Ibu", kelas: "Umum", title: "Ibu-Ibu" }
-  ];
-
-  const daysName = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-
-  container.innerHTML = classConfigs.map(cfg => {
-    let journalsByDate = {};
-
-    presensiList.forEach(p => {
-      const pKel = String(p.Kelompok || "").trim().toLowerCase();
-      const pKls = String(p.Kelas || "Umum").trim().toLowerCase();
-
-      const matchKel = pKel === String(cfg.kelompok).trim().toLowerCase();
-      const matchKls = (cfg.kelompok === "Caberawit" || cfg.kelompok === "ASAD") ? (pKls === String(cfg.kelas).trim().toLowerCase()) : true;
-
-      if (matchKel && matchKls && p.Tanggal && p.NamaJamaah) {
-        let pDateStr = (p.Tanggal instanceof Date) ? p.Tanggal.toISOString().split("T")[0] : String(p.Tanggal).split("T")[0].trim();
-
-        let computedHari = p.Hari || p.hari;
-        if (!computedHari) {
-          const d = new Date(pDateStr + "T00:00:00");
-          if (!isNaN(d.getTime())) {
-            computedHari = daysName[d.getDay()];
-          } else {
-            computedHari = "-";
-          }
-        }
-
-        const valJenis = p.JenisKegiatan || p.jenisKegiatan || 'Pengajian Rutin';
-        const valPemateri = p.Pemateri || p.pemateri || '-';
-        const valJurnal = p.Jurnal || p.jurnal || '-';
-        const valKendala = p.Kendala || p.kendala || '-';
-        const valAdmin = p.Admin || p.admin || 'Admin';
-        const valStatus = String(p.StatusPresensi || "Hadir").trim();
-
-        if (!journalsByDate[pDateStr]) {
-          journalsByDate[pDateStr] = {
-            tanggal: pDateStr,
-            hari: computedHari,
-            jenisKegiatan: valJenis,
-            pemateri: valPemateri,
-            jurnal: valJurnal,
-            kendala: valKendala,
-            admin: valAdmin,
-            jamaahMap: {}
-          };
-        } else {
-          if (valJurnal !== '-') journalsByDate[pDateStr].jurnal = valJurnal;
-          if (valPemateri !== '-') journalsByDate[pDateStr].pemateri = valPemateri;
-          if (valKendala !== '-') journalsByDate[pDateStr].kendala = valKendala;
-          if (valJenis !== 'Pengajian Rutin') journalsByDate[pDateStr].jenisKegiatan = valJenis;
-          if (valAdmin !== 'Admin') journalsByDate[pDateStr].admin = valAdmin;
-        }
-
-        journalsByDate[pDateStr].jamaahMap[String(p.NamaJamaah).trim().toLowerCase()] = valStatus;
-      }
-    });
-
-    const datesList = Object.values(journalsByDate).sort((a, b) => b.tanggal.localeCompare(a.tanggal));
-
-    return `
-      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-          <h3 class="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-2">
-            <span class="w-3 h-3 rounded-full bg-teal-600"></span> ${cfg.title}
-          </h3>
-          <span class="text-xs font-semibold px-2.5 py-1 bg-teal-50 text-teal-700 rounded-full border border-teal-200">
-            ${datesList.length} Pertemuan Dicatat
+  // Banner Rekomendasi Terendah Per Desa
+  const recGrid = document.getElementById("rekomendasi-grid");
+  if (recGrid && analyticsPenyapaan.rekomendasi) {
+    recGrid.innerHTML = analyticsPenyapaan.rekomendasi.map(r => `
+      <div class="bg-white p-3 rounded-xl border border-amber-300 shadow-sm">
+        <span class="text-[10px] font-bold uppercase text-amber-700 block">${r.nama_desa}</span>
+        <p class="font-black text-slate-800 text-xs mt-0.5">${r.nama_kelompok}</p>
+        <div class="flex justify-between items-center mt-2 text-[10px]">
+          <span class="text-slate-500">Sapaan: <b>${r.frekuensi}x</b></span>
+          <span class="px-2 py-0.5 rounded ${r.frekuensi === 0 ? 'bg-rose-100 text-rose-700 font-bold' : 'bg-amber-100 text-amber-800 font-bold'}">
+            ${r.frekuensi === 0 ? 'Belum Pernah' : 'Terkecil'}
           </span>
         </div>
+      </div>
+    `).join("");
+  }
 
-        ${datesList.length === 0 ? `
-          <p class="text-xs text-slate-400 italic py-2">Belum ada jurnal pengajian yang terdata untuk kelas ini.</p>
-        ` : `
-          <div class="space-y-3 max-h-80 overflow-y-auto pr-1">
-            ${datesList.map(j => {
-              let h = 0, i = 0, a = 0;
-              Object.values(j.jamaahMap).forEach(st => {
-                if (st === "Hadir") h++;
-                else if (st === "Izin") i++;
-                else if (st === "Alfa") a++;
-              });
+  renderPetaCards();
+  renderRiwayatPenyapaanTable();
+  populateSapaanSelectors();
+}
 
-              return `
-                <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs space-y-2">
-                  <div class="flex flex-wrap justify-between items-center text-slate-700 font-bold border-b border-slate-200/60 pb-2 gap-2">
-                    <span class="text-teal-800 flex items-center gap-1">
-                      <i class="fa-solid fa-calendar-day"></i> ${j.hari}, ${j.tanggal}
-                    </span>
-                    <span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-[10px] font-bold">
-                      ${j.jenisKegiatan}
-                    </span>
-                  </div>
+function filterPetaCards(filter) {
+  currentPetaFilter = filter;
+  renderPetaCards();
+}
 
-                  <div class="flex items-center gap-2 my-1">
-                    <span class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-bold border border-emerald-200">
-                      <i class="fa-solid fa-user-check mr-1"></i> Hadir: ${h}
-                    </span>
-                    <span class="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[10px] font-bold border border-amber-200">
-                      <i class="fa-solid fa-user-clock mr-1"></i> Izin: ${i}
-                    </span>
-                    <span class="px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 text-[10px] font-bold border border-rose-200">
-                      <i class="fa-solid fa-user-xmark mr-1"></i> Alfa: ${a}
-                    </span>
-                  </div>
+function renderPetaCards() {
+  const container = document.getElementById("peta-desa-grid");
+  if (!container || !analyticsPenyapaan) return;
 
-                  <p><b class="text-slate-700">Pemateri:</b> ${j.pemateri}</p>
-                  <p><b class="text-slate-700">Capaian Jurnal:</b> ${j.jurnal}</p>
-                  <p class="text-slate-500"><b class="text-slate-700">Kendala KBM:</b> ${j.kendala}</p>
-                  <p class="text-slate-400 text-[10px] text-right pt-1"><i class="fa-solid fa-user-pen mr-1"></i> <b>Dicatat oleh:</b> ${j.admin}</p>
-                </div>
-              `;
-            }).join("")}
-          </div>
-        `}
+  const mapping = analyticsPenyapaan.kelompokMapping || [];
+  const desas = [...new Set(mapping.map(m => m.nama_desa))];
+
+  container.innerHTML = desas.map(desa => {
+    let list = mapping.filter(k => k.nama_desa === desa);
+    if (currentPetaFilter === "sudah") list = list.filter(k => k.frekuensi > 0);
+    if (currentPetaFilter === "belum") list = list.filter(k => k.frekuensi === 0);
+
+    return `
+      <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+        <div class="border-b pb-2 flex justify-between items-center">
+          <h4 class="font-bold text-slate-800 text-xs uppercase"><i class="fa-solid fa-location-dot text-emerald-600 mr-1"></i>${desa}</h4>
+          <span class="text-[10px] text-slate-500 font-medium">${list.length} Kelompok</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          ${list.map(k => `
+            <div class="p-2.5 rounded-xl border flex flex-col justify-between space-y-1.5 ${k.frekuensi > 0 ? 'bg-emerald-50/70 border-emerald-300' : 'bg-slate-50 border-slate-200'}">
+              <div>
+                <p class="font-bold text-xs text-slate-800">${k.nama_kelompok}</p>
+                <span class="text-[10px] ${k.frekuensi > 0 ? 'text-emerald-700 font-bold' : 'text-slate-400 font-medium'}">
+                  ${k.frekuensi > 0 ? `<i class="fa-solid fa-check"></i> ${k.frekuensi}x Disapa` : 'Belum Pernah Disapa'}
+                </span>
+              </div>
+              <p class="text-[9px] text-slate-400 border-t pt-1 border-slate-200">
+                Terakhir: ${k.tanggal_terakhir !== '-' ? String(k.tanggal_terakhir).split('T')[0] : '-'}
+              </p>
+            </div>
+          `).join("")}
+        </div>
       </div>
     `;
   }).join("");
 }
 
-// 7. RENDER STATISTIK GRAFIK (VIEWER: FULL HISTORY, ADMIN: 1 BULAN DEFAULT & BISA DIUBAH)
-function initChartDateFilters() {
-  const startDateInput = document.getElementById("chart-date-start");
-  const endDateInput = document.getElementById("chart-date-end");
+function renderRiwayatPenyapaanTable() {
+  const tbody = document.getElementById("table-riwayat-sapaan-body");
+  if (!tbody || !analyticsPenyapaan) return;
 
-  if (startDateInput && endDateInput) {
-    if (currentAdmin) {
-      if (!startDateInput.value && !endDateInput.value) {
-        const today = new Date();
-        const oneMonthAgo = new Date();
-        oneMonthAgo.setMonth(today.getMonth() - 1);
+  const search = (document.getElementById("search-riwayat").value || "").toLowerCase();
+  const desaFilter = document.getElementById("filter-riwayat-desa") ? document.getElementById("filter-riwayat-desa").value : "ALL";
 
-        const formatDate = (d) => {
-          const y = d.getFullYear();
-          const m = String(d.getMonth() + 1).padStart(2, '0');
-          const day = String(d.getDate()).padStart(2, '0');
-          return `${y}-${m}-${d}`;
-        };
-
-        startDateInput.value = formatDate(oneMonthAgo);
-        endDateInput.value = formatDate(today);
-      }
-    } else {
-      startDateInput.value = "";
-      endDateInput.value = "";
-    }
+  let list = analyticsPenyapaan.riwayat || [];
+  if (desaFilter !== "ALL") list = list.filter(r => r.Nama_Desa === desaFilter);
+  if (search) {
+    list = list.filter(r =>
+      String(r.Nama_Petugas).toLowerCase().includes(search) ||
+      String(r.Nama_Kelompok).toLowerCase().includes(search) ||
+      String(r.Jenis_Kegiatan_Sapaan).toLowerCase().includes(search)
+    );
   }
-}
 
-function onChartFilterChange() {
-  if (!currentAdmin) return alert("Hanya Admin yang dapat merubah rentang tanggal filter statistik!");
-  renderAllCharts();
-}
+  if (list.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400 italic">Tidak ada catatan riwayat penyapaan kegiatan.</td></tr>`;
+    return;
+  }
 
-function renderAllCharts() {
-  const container = document.getElementById("charts-wrapper");
-  if (!container) return;
-
-  initChartDateFilters();
-
-  const startDateVal = document.getElementById("chart-date-start") ? document.getElementById("chart-date-start").value : "";
-  const endDateVal = document.getElementById("chart-date-end") ? document.getElementById("chart-date-end").value : "";
-
-  const chartConfigs = [
-    { kelompok: "ASAD", kelas: "Caberawit Laki-Laki", title: "ASAD - Caberawit Laki-Laki" },
-    { kelompok: "ASAD", kelas: "Caberawit Perempuan", title: "ASAD - Caberawit Perempuan" },
-    { kelompok: "ASAD", kelas: "Laki-Laki", title: "ASAD - Laki-Laki" },
-    { kelompok: "ASAD", kelas: "Perempuan", title: "ASAD - Perempuan" },
-    { kelompok: "Caberawit", kelas: "Caberawit A", title: "Caberawit - Caberawit A" },
-    { kelompok: "Caberawit", kelas: "Caberawit B", title: "Caberawit - Caberawit B" },
-    { kelompok: "Caberawit", kelas: "Caberawit C", title: "Caberawit - Caberawit C" },
-    { kelompok: "Caberawit", kelas: "Caberawit D", title: "Caberawit - Caberawit D" },
-    { kelompok: "Pra Remaja", kelas: "Umum", title: "Pra Remaja (SMP)" },
-    { kelompok: "Remaja", kelas: "Umum", title: "Remaja (SMA)" },
-    { kelompok: "Muda-Mudi", kelas: "Umum", title: "Muda-Mudi" },
-    { kelompok: "Bapak-Bapak", kelas: "Umum", title: "Bapak-Bapak" },
-    { kelompok: "Ibu-Ibu", kelas: "Umum", title: "Ibu-Ibu" }
-  ];
-
-  Object.values(chartInstances).forEach(chart => chart && typeof chart.destroy === 'function' && chart.destroy());
-  chartInstances = {};
-
-  const periodeLabel = (startDateVal && endDateVal) ? `${startDateVal} s/d ${endDateVal}` : 'Seluruh Riwayat (Awal s/d Akhir)';
-
-  container.innerHTML = chartConfigs.map((cfg, idx) => `
-    <div class="bg-white p-4 sm:p-6 rounded-xl border border-slate-200 shadow-sm">
-      <div class="flex items-center justify-between mb-3 border-b border-slate-100 pb-3">
-        <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
-          <span class="w-2.5 h-2.5 rounded-full bg-teal-500"></span> ${cfg.title}
-        </h3>
-        <span class="text-xs px-2.5 py-1 bg-slate-100 text-slate-600 rounded-full font-semibold">
-          Periode: ${periodeLabel}
-        </span>
-      </div>
-      <div id="chart-avg-${idx}" class="flex flex-wrap items-center gap-2 mb-3 text-[11px] font-bold"></div>
-      <div class="relative h-64 sm:h-72">
-        <canvas id="chart-canvas-${idx}"></canvas>
-      </div>
-    </div>
+  tbody.innerHTML = list.map(r => `
+    <tr class="bg-white hover:bg-slate-50 border-b">
+      <td class="px-3 py-2.5 whitespace-nowrap font-medium text-slate-600">${String(r.Tanggal).split('T')[0]}</td>
+      <td class="px-3 py-2.5 font-semibold text-slate-700">${r.Nama_Desa}</td>
+      <td class="px-3 py-2.5 font-bold text-slate-900">${r.Nama_Kelompok}</td>
+      <td class="px-3 py-2.5 text-teal-700 font-semibold">${r.Jenis_Kegiatan_Sapaan}</td>
+      <td class="px-3 py-2.5 font-medium text-slate-700">${r.Nama_Petugas}</td>
+      <td class="px-4 py-2.5 text-slate-500 max-w-xs leading-relaxed">${r.Catatan_Hasil_Solusi}</td>
+    </tr>
   `).join("");
-
-  chartConfigs.forEach((cfg, idx) => {
-    renderSingleChart(`chart-canvas-${idx}`, `chart-avg-${idx}`, cfg.kelompok, cfg.kelas, startDateVal, endDateVal);
-  });
 }
 
-function renderSingleChart(canvasId, avgContainerId, selectedKelompok, selectedKelas, startDateStr, endDateStr) {
-  const chartCanvas = document.getElementById(canvasId);
-  const avgContainer = document.getElementById(avgContainerId);
-  if (!chartCanvas) return;
+function populateSapaanSelectors() {
+  const desaSelect = document.getElementById("sapaan-desa-select");
+  const filterDesa = document.getElementById("filter-riwayat-desa");
+  if (!desaSelect) return;
 
-  const ctx = chartCanvas.getContext("2d");
+  const mk = Array.isArray(appData.master_kelompok) ? appData.master_kelompok : [];
+  const desas = [...new Set(mk.map(m => m.Nama_Desa))];
 
-  const jamaahList = Array.isArray(appData.jamaah) ? appData.jamaah : [];
-  const totalJamaahAktifList = jamaahList.filter(j => {
-    const matchStatus = String(j.Status || "Aktif").trim().toLowerCase() === "aktif";
-    const jKelompok = String(j.Kelompok || "").trim();
-    const jGender = String(j.Gender || "").trim().toLowerCase();
+  if (desas.length === 0) desas.push("Desa 1", "Desa 2", "Desa 3", "Desa 4");
 
-    if (selectedKelompok === "ASAD") {
-      if (selectedKelas === "Caberawit Laki-Laki") {
-        return matchStatus && jKelompok === "Caberawit" && jGender === "laki-laki";
-      } else if (selectedKelas === "Caberawit Perempuan") {
-        return matchStatus && jKelompok === "Caberawit" && jGender === "perempuan";
-      } else if (selectedKelas === "Laki-Laki") {
-        const isAdultGroup = ["Pra Remaja", "Remaja", "Muda-Mudi", "Bapak-Bapak"].includes(jKelompok);
-        return matchStatus && isAdultGroup && jGender === "laki-laki";
-      } else if (selectedKelas === "Perempuan") {
-        const isAdultGroup = ["Pra Remaja", "Remaja", "Muda-Mudi", "Ibu-Ibu"].includes(jKelompok);
-        return matchStatus && isAdultGroup && jGender === "perempuan";
-      }
-    }
-
-    const matchKelompok = String(j.Kelompok || "Caberawit").trim().toLowerCase() === String(selectedKelompok).trim().toLowerCase();
-    let matchKelas = true;
-    if (selectedKelompok === "Caberawit") {
-      matchKelas = String(j.Kelas || "").trim().toLowerCase() === String(selectedKelas).trim().toLowerCase();
-    }
-    return matchStatus && matchKelompok && matchKelas;
-  });
-
-  const totalJamaahKelas = totalJamaahAktifList.length > 0 ? totalJamaahAktifList.length : 1;
-
-  let dailyDataMap = {};
-  const presensiList = Array.isArray(appData.presensi) ? appData.presensi : [];
-
-  let uniquePresensiMap = {};
-
-  presensiList.forEach(p => {
-    if (!p.Tanggal || !p.NamaJamaah) return;
-
-    const pKel = String(p.Kelompok || "Caberawit").trim().toLowerCase();
-    const pKls = String(p.Kelas || "Umum").trim().toLowerCase();
-    
-    const checkKelas = (selectedKelompok === "Caberawit" || selectedKelompok === "ASAD") ? (pKls === String(selectedKelas).trim().toLowerCase()) : true;
-
-    if (pKel !== String(selectedKelompok).trim().toLowerCase() || !checkKelas) {
-      return;
-    }
-
-    let rawDateStr = "";
-    if (typeof p.Tanggal === "string") {
-      rawDateStr = p.Tanggal.split("T")[0].trim();
-    } else if (p.Tanggal instanceof Date) {
-      const y = p.Tanggal.getUTCFullYear();
-      const m = String(p.Tanggal.getUTCMonth() + 1).padStart(2, '0');
-      const d = String(p.Tanggal.getUTCDate()).padStart(2, '0');
-      rawDateStr = `${y}-${m}-${d}`;
-    } else {
-      rawDateStr = String(p.Tanggal).substring(0, 10).trim();
-    }
-
-    if (!rawDateStr || rawDateStr.length < 10) return;
-
-    if (startDateStr && rawDateStr < startDateStr) return;
-    if (endDateStr && rawDateStr > endDateStr) return;
-
-    const uniqueKey = `${rawDateStr}_${String(p.NamaJamaah).trim().toLowerCase()}`;
-    uniquePresensiMap[uniqueKey] = {
-      tanggal: rawDateStr,
-      status: String(p.StatusPresensi || "Hadir").trim()
-    };
-  });
-
-  Object.values(uniquePresensiMap).forEach(p => {
-    const rawDateStr = p.tanggal;
-    if (!dailyDataMap[rawDateStr]) {
-      dailyDataMap[rawDateStr] = { Hadir: 0, Izin: 0, Alfa: 0 };
-    }
-
-    const st = p.status;
-    if (st === "Hadir") dailyDataMap[rawDateStr].Hadir++;
-    else if (st === "Izin") dailyDataMap[rawDateStr].Izin++;
-    else if (st === "Alfa") dailyDataMap[rawDateStr].Alfa++;
-  });
-
-  const sortedDates = Object.keys(dailyDataMap).sort();
-
-  let labels = [];
-  let hadirData = [];
-  let izinData = [];
-  let alfaData = [];
-
-  sortedDates.forEach(dateStr => {
-    const parts = dateStr.split("-");
-    if (parts.length === 3) {
-      labels.push(`${parts[2]}/${parts[1]}`);
-    } else {
-      labels.push(dateStr);
-    }
-
-    const stats = dailyDataMap[dateStr];
-
-    const pctHadir = Number(((stats.Hadir / totalJamaahKelas) * 100).toFixed(1));
-    const pctIzin = Number(((stats.Izin / totalJamaahKelas) * 100).toFixed(1));
-    const pctAlfa = Number(((stats.Alfa / totalJamaahKelas) * 100).toFixed(1));
-
-    hadirData.push(pctHadir);
-    izinData.push(pctIzin);
-    alfaData.push(pctAlfa);
-  });
-
-  const totalPertemuan = sortedDates.length;
-  if (avgContainer) {
-    if (totalPertemuan > 0) {
-      const sumHadir = hadirData.reduce((acc, curr) => acc + curr, 0);
-      const sumIzin = izinData.reduce((acc, curr) => acc + curr, 0);
-      const sumAlfa = alfaData.reduce((acc, curr) => acc + curr, 0);
-
-      const avgHadir = (sumHadir / totalPertemuan).toFixed(1);
-      const avgIzin = (sumIzin / totalPertemuan).toFixed(1);
-      const avgAlfa = (sumAlfa / totalPertemuan).toFixed(1);
-
-      avgContainer.innerHTML = `
-        <span class="text-slate-500 font-semibold mr-1">Rata-rata (${totalPertemuan} Pertemuan):</span>
-        <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
-          <i class="fa-solid fa-user-check mr-1"></i> Hadir: ${avgHadir}%
-        </span>
-        <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200">
-          <i class="fa-solid fa-user-clock mr-1"></i> Izin: ${avgIzin}%
-        </span>
-        <span class="px-2 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-200">
-          <i class="fa-solid fa-user-xmark mr-1"></i> Alfa: ${avgAlfa}%
-        </span>
-      `;
-    } else {
-      avgContainer.innerHTML = `<span class="text-slate-400 italic font-normal">Belum ada data presensi pada rentang waktu ini.</span>`;
-    }
+  desaSelect.innerHTML = desas.map(d => `<option value="${d}">${d}</option>`).join("");
+  if (filterDesa) {
+    filterDesa.innerHTML = `<option value="ALL">Semua Desa</option>` + desas.map(d => `<option value="${d}">${d}</option>`).join("");
   }
 
-  if (labels.length === 0) {
-    labels = ["Belum Ada Data"];
-    hadirData = [0];
-    izinData = [0];
-    alfaData = [0];
-  }
-
-  chartInstances[canvasId] = new Chart(ctx, {
-    type: "line",
-    data: {
-      labels: labels,
-      datasets: [
-        {
-          label: "Hadir (%)",
-          data: hadirData,
-          borderColor: "#10b981",
-          backgroundColor: "rgba(16, 185, 129, 0.08)",
-          borderWidth: 2.5,
-          pointBackgroundColor: "#10b981",
-          pointRadius: 4,
-          tension: 0.2,
-          fill: true
-        },
-        {
-          label: "Izin (%)",
-          data: izinData,
-          borderColor: "#f59e0b",
-          backgroundColor: "rgba(245, 158, 11, 0.08)",
-          borderWidth: 2.5,
-          pointBackgroundColor: "#f59e0b",
-          pointRadius: 4,
-          tension: 0.2,
-          fill: false
-        },
-        {
-          label: "Alfa (%)",
-          data: alfaData,
-          borderColor: "#ef4444",
-          backgroundColor: "rgba(239, 68, 68, 0.08)",
-          borderWidth: 2.5,
-          pointBackgroundColor: "#ef4444",
-          pointRadius: 4,
-          tension: 0.2,
-          fill: false
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      layout: {
-        padding: { top: 20, bottom: 10, left: 10, right: 15 }
-      },
-      plugins: {
-        legend: {
-          position: "top",
-          align: "center",
-          labels: { boxWidth: 12, boxHeight: 10, padding: 15, font: { family: "sans-serif", weight: "bold", size: 11 } }
-        },
-        tooltip: {
-          callbacks: { label: function(context) { return `${context.dataset.label}: ${context.raw}%`; } }
-        },
-        datalabels: {
-          anchor: function(context) { return context.dataset.data[context.dataIndex] >= 100 ? "center" : "end"; },
-          align: function(context) { return context.dataset.data[context.dataIndex] >= 100 ? "bottom" : "top"; },
-          offset: 4,
-          formatter: function(val) { return val > 0 ? val + "%" : ""; },
-          font: { size: 10, weight: "bold" },
-          color: function(context) { return context.dataset.borderColor; }
-        }
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-          suggestedMax: 100,
-          max: 100,
-          title: { display: true, text: "Persentase Kehadiran (%)", font: { size: 10 } },
-          ticks: { stepSize: 20, callback: function(val) { return val <= 100 ? val + "%" : ""; } }
-        },
-        x: {
-          title: { display: true, text: "Tanggal Presensi", font: { size: 10 } }
-        }
-      }
-    }
-  });
+  handleSapaanDesaChange();
 }
 
+function handleSapaanDesaChange() {
+  const desa = document.getElementById("sapaan-desa-select").value;
+  const kelSelect = document.getElementById("sapaan-kelompok-select");
+  if (!kelSelect) return;
+  const mk = Array.isArray(appData.master_kelompok) ? appData.master_kelompok : [];
+  const list = mk.filter(k => k.Nama_Desa === desa);
+  kelSelect.innerHTML = list.map(k => `<option value="${k.ID_Kelompok}">${k.Nama_Kelompok}</option>`).join("");
+}
+
+async function handlePenyapaanSubmit(e) {
+  e.preventDefault();
+  if (!currentAdmin) return alert("Hanya Admin yang berwenang mencatat sapaan kegiatan!");
+
+  const kelId = document.getElementById("sapaan-kelompok-select").value;
+  const mk = Array.isArray(appData.master_kelompok) ? appData.master_kelompok : [];
+  const kelObj = mk.find(k => String(k.ID_Kelompok) === String(kelId));
+
+  const payload = {
+    action: "add_penyapaan",
+    tanggal: document.getElementById("sapaan-tanggal").value,
+    idKelompok: kelId,
+    namaKelompok: kelObj ? kelObj.Nama_Kelompok : "-",
+    namaDesa: document.getElementById("sapaan-desa-select").value,
+    namaPetugas: document.getElementById("sapaan-petugas").value,
+    jenisKegiatan: document.getElementById("sapaan-agenda").value,
+    catatan: document.getElementById("sapaan-catatan").value
+  };
+
+  showMessage("Menyimpan laporan penyapaan...", "info");
+  try {
+    const res = await fetch(SCRIPT_URL, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if (json.success) {
+      showMessage(json.message, "success");
+      document.getElementById("form-penyapaan").reset();
+      await loadAllData();
+      switchPenyapaanSubTab("status-peta");
+    } else {
+      showMessage(json.message, "error");
+    }
+  } catch (err) {
+    showMessage("Gagal menyimpan penyapaan.", "error");
+  }
+}
+
+function downloadLembarKerja() {
+  window.print();
+}
+
+// =========================================================================
+// MODAL & CRUD HANDLERS
+// =========================================================================
 function openFormKegiatan() {
   activeFormType = "Kegiatan";
   const titleEl = document.getElementById("modal-form-title");
@@ -1709,63 +1088,26 @@ function openFormKegiatan() {
   if (fieldsEl) {
     fieldsEl.innerHTML = `
       <input type="hidden" name="ID" value="">
-      <div>
-        <label class="block text-xs font-semibold mb-1">Nama Kegiatan</label>
-        <input type="text" name="Kegiatan" required class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Misal: CAI DAY 1">
-      </div>
+      <div><label class="block text-xs font-semibold mb-1">Nama Kegiatan</label><input type="text" name="Kegiatan" required class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Misal: Pengajian Akbar"></div>
       <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label class="block text-xs font-semibold mb-1">Tanggal</label>
-          <input type="date" id="modal-kegiatan-tanggal" name="Tanggal" required onchange="updateModalHari()" class="w-full border rounded px-3 py-1.5 text-sm">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold mb-1">Hari</label>
-          <input type="text" id="modal-kegiatan-hari" name="Hari" readonly class="w-full border rounded px-3 py-1.5 text-sm bg-slate-100 font-semibold text-slate-700" placeholder="Otomatis">
-        </div>
+        <div><label class="block text-xs font-semibold mb-1">Tanggal</label><input type="date" id="modal-kegiatan-tanggal" name="Tanggal" required onchange="updateModalHari()" class="w-full border rounded px-3 py-1.5 text-sm"></div>
+        <div><label class="block text-xs font-semibold mb-1">Hari</label><input type="text" id="modal-kegiatan-hari" name="Hari" readonly class="w-full border rounded px-3 py-1.5 text-sm bg-slate-100 font-semibold text-slate-700" placeholder="Otomatis"></div>
       </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1">Jam / Waktu</label>
-        <input type="text" name="Jam" required class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Misal: 19:30 - Selesai">
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1">Pemateri / Pengajar</label>
-        <input type="text" name="Pemateri" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Nama Ustaz / Penceramah">
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1">Keterangan / Lokasi</label>
-        <textarea name="Keterangan" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Catatan lokasi atau perlengkapan yang perlu dibawa"></textarea>
-      </div>
+      <div><label class="block text-xs font-semibold mb-1">Jam / Waktu</label><input type="text" name="Jam" required class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Misal: 19:30 - Selesai"></div>
+      <div><label class="block text-xs font-semibold mb-1">Pemateri</label><input type="text" name="Pemateri" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Nama Ustaz / Penceramah"></div>
+      <div><label class="block text-xs font-semibold mb-1">Keterangan / Lokasi</label><textarea name="Keterangan" class="w-full border rounded px-3 py-1.5 text-sm"></textarea></div>
     `;
   }
-  
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
-  const dateEl = document.getElementById("modal-kegiatan-tanggal");
-  if (dateEl) {
-    dateEl.value = `${year}-${month}-${day}`;
-    updateModalHari();
-  }
-
   openModal("modal-form");
 }
 
 function updateModalHari() {
   const dateInput = document.getElementById("modal-kegiatan-tanggal");
   const hariInput = document.getElementById("modal-kegiatan-hari");
-  if (!dateInput || !hariInput) return;
-
-  if (!dateInput.value) {
-    hariInput.value = "";
-    return;
-  }
-
+  if (!dateInput || !hariInput || !dateInput.value) return;
   const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
   const d = new Date(dateInput.value + "T00:00:00");
-  if (!isNaN(d.getTime())) {
-    hariInput.value = days[d.getDay()];
-  }
+  if (!isNaN(d.getTime())) hariInput.value = days[d.getDay()];
 }
 
 function openFormPengurus() {
@@ -1808,34 +1150,45 @@ function openFormJamaah(data = null) {
   const titleEl = document.getElementById("modal-form-title");
   const fieldsEl = document.getElementById("modal-form-fields");
   if (titleEl) titleEl.innerText = data ? "Edit Data Jamaah" : "Tambah Data Jamaah";
-  
+
   let formattedDob = "";
   if (data && data.TanggalLahir) {
-    if (data.TanggalLahir instanceof Date) {
-      const y = data.TanggalLahir.getFullYear();
-      const m = String(data.TanggalLahir.getMonth() + 1).padStart(2, '0');
-      const d = String(data.TanggalLahir.getDate()).padStart(2, '0');
-      formattedDob = `${y}-${m}-${d}`;
-    } else {
-      formattedDob = data.TanggalLahir.toString().split("T")[0].trim();
-    }
+    formattedDob = (data.TanggalLahir instanceof Date) ? data.TanggalLahir.toISOString().split("T")[0] : data.TanggalLahir.toString().split("T")[0].trim();
   }
+
+  const mk = Array.isArray(appData.master_kelompok) ? appData.master_kelompok : [];
+  let desas = [...new Set(mk.map(m => m.Nama_Desa))];
+  if (desas.length === 0) desas = ["Desa 1", "Desa 2", "Desa 3", "Desa 4"];
 
   if (fieldsEl) {
     fieldsEl.innerHTML = `
-      <input type="hidden" name="ID" value="${data ? data.ID : ''}">
-      <div><label class="block text-xs font-semibold mb-1">Nama Lengkap</label><input type="text" name="Nama" value="${data ? (data.Nama || '') : ''}" required class="w-full border rounded px-3 py-1.5 text-sm"></div>
-      <div><label class="block text-xs font-semibold mb-1">Tanggal Lahir</label><input type="date" name="TanggalLahir" value="${formattedDob}" required class="w-full border rounded px-3 py-1.5 text-sm"></div>
+      <input type="hidden" name="ID" value="${data ? (data.ID || data.ID_Jamaah) : ''}">
+      <div><label class="block text-xs font-semibold mb-1">Nama Lengkap</label><input type="text" name="Nama_Lengkap" value="${data ? (data.Nama || data.Nama_Lengkap || '') : ''}" required class="w-full border rounded px-3 py-1.5 text-sm"></div>
       
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs font-semibold mb-1">Desa Binaan</label>
+          <select name="Desa" id="form-modal-desa" onchange="onModalDesaChange()" class="w-full border rounded px-3 py-1.5 text-sm">
+            ${desas.map(d => `<option value="${d}" ${data && data.Desa === d ? 'selected' : ''}>${d}</option>`).join("")}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1">Kelompok Binaan</label>
+          <select name="KelompokBinaan" id="form-modal-kelompok" class="w-full border rounded px-3 py-1.5 text-sm"></select>
+        </div>
+      </div>
+
+      <div><label class="block text-xs font-semibold mb-1">Tanggal Lahir</label><input type="date" name="TanggalLahir" value="${formattedDob}" required class="w-full border rounded px-3 py-1.5 text-sm"></div>
+
       <div>
         <label class="block text-xs font-semibold mb-1">Kelompok Usia</label>
-        <select name="Kelompok" id="field-kelompok" onchange="onKelompokChange()" class="w-full border rounded px-3 py-1.5 text-sm">
-          <option value="Caberawit" ${data && data.Kelompok === 'Caberawit' ? 'selected' : ''}>Caberawit (SD)</option>
-          <option value="Pra Remaja" ${data && data.Kelompok === 'Pra Remaja' ? 'selected' : ''}>Pra Remaja (SMP)</option>
-          <option value="Remaja" ${data && data.Kelompok === 'Remaja' ? 'selected' : ''}>Remaja (SMA)</option>
-          <option value="Muda-Mudi" ${data && data.Kelompok === 'Muda-Mudi' ? 'selected' : ''}>Muda-Mudi</option>
-          <option value="Bapak-Bapak" ${data && data.Kelompok === 'Bapak-Bapak' ? 'selected' : ''}>Bapak-Bapak</option>
-          <option value="Ibu-Ibu" ${data && data.Kelompok === 'Ibu-Ibu' ? 'selected' : ''}>Ibu-Ibu</option>
+        <select name="Kelas_Usia" id="field-kelompok" onchange="onKelompokChange()" class="w-full border rounded px-3 py-1.5 text-sm">
+          <option value="Caberawit" ${data && (data.Kelompok === 'Caberawit' || data.Kelas_Usia === 'Caberawit') ? 'selected' : ''}>Caberawit (SD)</option>
+          <option value="Pra Remaja" ${data && (data.Kelompok === 'Pra Remaja' || data.Kelas_Usia === 'Pra Remaja') ? 'selected' : ''}>Pra Remaja (SMP)</option>
+          <option value="Remaja" ${data && (data.Kelompok === 'Remaja' || data.Kelas_Usia === 'Remaja') ? 'selected' : ''}>Remaja (SMA)</option>
+          <option value="Muda-Mudi" ${data && (data.Kelompok === 'Muda-Mudi' || data.Kelas_Usia === 'Muda-Mudi') ? 'selected' : ''}>Muda-Mudi</option>
+          <option value="Bapak-Bapak" ${data && (data.Kelompok === 'Bapak-Bapak' || data.Kelas_Usia === 'Bapak-Bapak') ? 'selected' : ''}>Bapak-Bapak</option>
+          <option value="Ibu-Ibu" ${data && (data.Kelompok === 'Ibu-Ibu' || data.Kelas_Usia === 'Ibu-Ibu') ? 'selected' : ''}>Ibu-Ibu</option>
         </select>
       </div>
 
@@ -1851,25 +1204,36 @@ function openFormJamaah(data = null) {
           <option value="Perempuan" ${data && data.Gender === 'Perempuan' ? 'selected' : ''}>Perempuan</option>
         </select>
       </div>
-      
+
       <div><label class="block text-xs font-semibold mb-1">Alamat</label><textarea name="Alamat" class="w-full border rounded px-3 py-1.5 text-sm">${data ? (data.Alamat || '') : ''}</textarea></div>
       <div>
-        <label class="block text-xs font-semibold mb-1">Status</label>
+        <label class="block text-xs font-semibold mb-1">Status Keaktifan</label>
         <select name="Status" class="w-full border rounded px-3 py-1.5 text-sm">
-          <option value="Aktif" ${!data || data.Status === 'Aktif' ? 'selected' : ''}>Aktif</option>
-          <option value="Pindah/Non-Aktif" ${data && data.Status === 'Pindah/Non-Aktif' ? 'selected' : ''}>Pindah/Non-Aktif</option>
+          <option value="Aktif" ${!data || data.Status === 'Aktif' || data.Keaktifan === 'Aktif' ? 'selected' : ''}>Aktif</option>
+          <option value="Non-Aktif" ${data && (data.Status === 'Non-Aktif' || data.Keaktifan === 'Non-Aktif') ? 'selected' : ''}>Non-Aktif</option>
         </select>
       </div>
     `;
   }
 
+  onModalDesaChange(data ? (data.KelompokBinaan || data.Nama_Kelompok) : null);
   onKelompokChange(data ? data.Kelas : null);
   openModal("modal-form");
 }
 
-function openModal(id) {
-  const modal = document.getElementById(id);
-  if (modal) modal.classList.remove("hidden");
+function onModalDesaChange(selectedKel = null) {
+  const desaSel = document.getElementById("form-modal-desa");
+  const kelSel = document.getElementById("form-modal-kelompok");
+  if (!desaSel || !kelSel) return;
+
+  const mk = Array.isArray(appData.master_kelompok) ? appData.master_kelompok : [];
+  const list = mk.filter(k => k.Nama_Desa === desaSel.value);
+
+  kelSel.innerHTML = list.map(k => `
+    <option value="${k.Nama_Kelompok}" ${selectedKel && selectedKel === k.Nama_Kelompok ? 'selected' : ''}>
+      ${k.Nama_Kelompok}
+    </option>
+  `).join("");
 }
 
 function onKelompokChange(selectedKelas = null) {
@@ -1885,7 +1249,7 @@ function onKelompokChange(selectedKelas = null) {
     if (kelasWrapper) kelasWrapper.style.display = "block";
     const options = ["Caberawit A", "Caberawit B", "Caberawit C", "Caberawit D"];
     options.forEach(opt => {
-      const isSelected = (selectedKelas && String(selectedKelas).trim().toLowerCase() === String(opt).trim().toLowerCase()) ? "selected" : "";
+      const isSelected = (selectedKelas && selectedKelas === opt) ? "selected" : "";
       kelasSelect.innerHTML += `<option value="${opt}" ${isSelected}>${opt}</option>`;
     });
   } else {
@@ -1896,10 +1260,8 @@ function onKelompokChange(selectedKelas = null) {
 
 function editJamaah(id) {
   const jamaahList = Array.isArray(appData.jamaah) ? appData.jamaah : [];
-  const item = jamaahList.find(j => String(j.ID) === String(id));
-  if (item) {
-    openFormJamaah(item);
-  }
+  const item = jamaahList.find(j => String(j.ID || j.ID_Jamaah) === String(id));
+  if (item) openFormJamaah(item);
 }
 
 async function handleFormSubmit(e) {
@@ -1908,8 +1270,8 @@ async function handleFormSubmit(e) {
   const dataObj = {};
   formData.forEach((value, key) => dataObj[key] = value);
 
-  const actionName = `save_${activeFormType.toLowerCase()}`;
-  showMessage("Menyimpan...", "info");
+  const actionName = (activeFormType === "Jamaah") ? "save_jamaah" : `save_${activeFormType.toLowerCase()}`;
+  showMessage("Menyimpan data...", "info");
 
   try {
     const res = await fetch(SCRIPT_URL, {
@@ -1918,7 +1280,7 @@ async function handleFormSubmit(e) {
     });
     const json = await res.json();
     if (json.success) {
-      showMessage(json.message, "success");
+      showMessage(json.message || "Data berhasil disimpan!", "success");
       closeModal("modal-form");
       loadAllData();
     } else {
@@ -1931,17 +1293,16 @@ async function handleFormSubmit(e) {
 
 async function deleteRow(sheetName, id) {
   if (!confirm("Apakah Anda yakin ingin menghapus data ini?")) return;
-  const actionName = `delete_${sheetName.toLowerCase()}`;
   showMessage("Menghapus data...", "info");
 
   try {
     const res = await fetch(SCRIPT_URL, {
       method: "POST",
-      body: JSON.stringify({ action: actionName, id: id })
+      body: JSON.stringify({ action: "delete_row", sheetName: sheetName, id: id })
     });
     const json = await res.json();
     if (json.success) {
-      showMessage(json.message, "success");
+      showMessage(json.message || "Data berhasil dihapus.", "success");
       loadAllData();
     } else {
       showMessage("Gagal menghapus: " + json.error, "error");
@@ -1951,49 +1312,34 @@ async function deleteRow(sheetName, id) {
   }
 }
 
-function openLoginModal() {
-  const modal = document.getElementById("modal-login");
-  if (modal) modal.classList.remove("hidden");
-}
-
-function openAddAdminModal() {
-  const modal = document.getElementById("modal-add-admin");
-  if (modal) modal.classList.remove("hidden");
-}
-
-function closeModal(id) {
-  const modal = document.getElementById(id);
-  if (modal) modal.classList.add("hidden");
-}
+function openLoginModal() { openModal("modal-login"); }
+function openAddAdminModal() { openModal("modal-add-admin"); }
+function openModal(id) { const modal = document.getElementById(id); if (modal) modal.classList.remove("hidden"); }
+function closeModal(id) { const modal = document.getElementById(id); if (modal) modal.classList.add("hidden"); }
 
 async function handleLogin(e) {
   e.preventDefault();
-  const namaInput = document.getElementById("login-nama");
-  const pinInput = document.getElementById("login-pin");
-  if (!namaInput || !pinInput) return;
+  const nama = document.getElementById("login-nama").value;
+  const pin = document.getElementById("login-pin").value;
 
-  const nama = namaInput.value;
-  const pin = pinInput.value;
-
-  showMessage("Verifikasi Admin...", "info");
+  showMessage("Memverifikasi...", "info");
   try {
     const res = await fetch(SCRIPT_URL, {
       method: "POST",
-      body: JSON.stringify({ action: "login", nama: nama, pin: pin })
+      body: JSON.stringify({ action: "login", username: nama, password: pin, nama: nama, pin: pin })
     });
     const json = await res.json();
     if (json.success) {
-      currentAdmin = { nama: json.admin.nama, role: json.admin.role, pin: pin };
+      currentAdmin = json.admin || json.user || { nama: nama, role: "Admin" };
       sessionStorage.setItem("currentAdmin", JSON.stringify(currentAdmin));
-      
       updateAdminUI();
       closeModal("modal-login");
       showMessage(`Selamat datang, ${currentAdmin.nama}!`, "success");
     } else {
-      showMessage(json.message, "error");
+      showMessage(json.message || "Login gagal.", "error");
     }
   } catch (err) {
-    showMessage("Gagal verifikasi login.", "error");
+    showMessage("Gagal login.", "error");
   }
 }
 
@@ -2001,85 +1347,39 @@ function logoutAdmin() {
   currentAdmin = null;
   sessionStorage.removeItem("currentAdmin");
   updateAdminUI();
-  showMessage("Anda telah logout dari mode Admin.", "info");
+  showMessage("Anda telah logout.", "info");
 }
 
 function updateAdminUI() {
   const adminElements = document.querySelectorAll(".admin-only");
-  
-  // Filter Grafik Statistik
-  const startDateInput = document.getElementById("chart-date-start");
-  const endDateInput = document.getElementById("chart-date-end");
-  const btnFilterChart = document.getElementById("btn-filter-chart");
-
-  // Filter Monitoring
-  const monStartDate = document.getElementById("monitoring-date-start");
-  const monEndDate = document.getElementById("monitoring-date-end");
-  const btnFilterMon = document.getElementById("btn-filter-monitoring");
-
-  const isReadOnly = !currentAdmin;
-
-  [startDateInput, endDateInput, monStartDate, monEndDate].forEach(el => {
-    if (el) {
-      el.disabled = isReadOnly;
-      if (isReadOnly) {
-        el.classList.add("bg-slate-100", "cursor-not-allowed", "opacity-80");
-        el.classList.remove("bg-white");
-      } else {
-        el.classList.remove("bg-slate-100", "cursor-not-allowed", "opacity-80");
-        el.classList.add("bg-white");
-      }
-    }
-  });
-
-  [btnFilterChart, btnFilterMon].forEach(btn => {
-    if (btn) {
-      btn.disabled = isReadOnly;
-      if (isReadOnly) {
-        btn.classList.add("opacity-50", "cursor-not-allowed");
-      } else {
-        btn.classList.remove("opacity-50", "cursor-not-allowed");
-      }
-    }
-  });
-
   if (currentAdmin) {
     adminElements.forEach(el => el.classList.remove("hidden"));
     if (document.getElementById("btn-login-modal")) document.getElementById("btn-login-modal").classList.add("hidden");
     if (document.getElementById("btn-logout")) document.getElementById("btn-logout").classList.remove("hidden");
     if (document.getElementById("admin-badge")) document.getElementById("admin-badge").classList.remove("hidden");
     if (document.getElementById("admin-name-display")) document.getElementById("admin-name-display").innerText = currentAdmin.nama;
-
-    if (currentAdmin.role === "Utama" && document.getElementById("btn-admin-manage")) {
-      document.getElementById("btn-admin-manage").classList.remove("hidden");
-    }
   } else {
     adminElements.forEach(el => el.classList.add("hidden"));
     if (document.getElementById("btn-login-modal")) document.getElementById("btn-login-modal").classList.remove("hidden");
     if (document.getElementById("btn-logout")) document.getElementById("btn-logout").classList.add("hidden");
     if (document.getElementById("admin-badge")) document.getElementById("admin-badge").classList.add("hidden");
-    if (document.getElementById("btn-admin-manage")) document.getElementById("btn-admin-manage").classList.add("hidden");
   }
-  renderAllViews();
+  renderPresensiTable();
 }
 
 async function handleAddAdmin(e) {
   e.preventDefault();
-  const namaInput = document.getElementById("new-admin-nama");
-  const pinInput = document.getElementById("new-admin-pin");
-  if (!namaInput || !pinInput) return;
-
-  const nama = namaInput.value;
-  const pin = pinInput.value;
+  const nama = document.getElementById("new-admin-nama").value;
+  const pin = document.getElementById("new-admin-pin").value;
 
   try {
     const res = await fetch(SCRIPT_URL, {
       method: "POST",
-      body: JSON.stringify({ action: "add_admin", nama: nama, pin: pin, adminSession: currentAdmin })
+      body: JSON.stringify({ action: "save_user", username: nama, password: pin, nama: nama, role: "Admin Desa", scopeDesa: "ALL", scopeKelompok: "ALL" })
     });
     const json = await res.json();
     if (json.success) {
-      showMessage(json.message, "success");
+      showMessage("Admin berhasil ditambahkan!", "success");
       closeModal("modal-add-admin");
     } else {
       showMessage(json.message, "error");
@@ -2093,11 +1393,11 @@ function showMessage(msg, type) {
   const el = document.getElementById("status-message");
   if (!el) return;
   el.innerText = msg;
-  el.classList.remove("hidden", "bg-emerald-100", "text-emerald-800", "bg-rose-100", "text-rose-800", "bg-amber-100", "text-amber-800");
-
-  if (type === "success") el.classList.add("bg-emerald-100", "text-emerald-800");
-  else if (type === "error") el.classList.add("bg-rose-100", "text-rose-800");
-  else el.classList.add("bg-amber-100", "text-amber-800");
+  el.className = "mb-4 p-3.5 sm:p-4 rounded-xl font-medium text-xs sm:text-sm border shadow-sm flex items-center justify-between";
+  if (type === "success") el.classList.add("bg-emerald-100", "text-emerald-800", "border-emerald-300");
+  else if (type === "error") el.classList.add("bg-rose-100", "text-rose-800", "border-rose-300");
+  else el.classList.add("bg-amber-100", "text-amber-800", "border-amber-300");
+  el.classList.remove("hidden");
 }
 
 function hideMessage() {
@@ -2108,17 +1408,11 @@ function hideMessage() {
 function toggleMobileMenu() {
   const menuContainer = document.getElementById("nav-menu-container");
   const icon = document.getElementById("hamburger-icon");
-  
   if (menuContainer) {
     menuContainer.classList.toggle("show-mobile-menu");
     if (icon) {
-      if (menuContainer.classList.contains("show-mobile-menu")) {
-        icon.classList.remove("fa-bars");
-        icon.classList.add("fa-xmark");
-      } else {
-        icon.classList.remove("fa-xmark");
-        icon.classList.add("fa-bars");
-      }
+      icon.classList.toggle("fa-bars");
+      icon.classList.toggle("fa-xmark");
     }
   }
 }
