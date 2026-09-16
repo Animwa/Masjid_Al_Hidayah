@@ -1,5 +1,5 @@
 /* ==========================================
-   ADVANCED RESPONSIVE STYLESHEET (CSS MEDIA QUERIES, FLEX, GRID, FLUID IMAGES)
+   STYLESHEET KARANGANYAR BARAT
    ========================================== */
 
 /* 1. Base Setup & Fluid Typography */
@@ -10,40 +10,26 @@ html, body {
   touch-action: manipulation;
 }
 
-/* 2. Fluid Images & Dynamic Graphic Scaling */
+/* 2. Fluid Images & Canvas */
 img, svg, canvas {
   max-width: 100%;
   height: auto;
   display: block;
 }
 
-.chart-container {
-  position: relative;
-  width: 100%;
-  height: 60vh;
-  min-height: 280px;
-  max-height: 480px;
-}
-
-/* 3. CSS Grid untuk Statistik Cards */
+/* 3. Grid Statistik */
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.75rem;
 }
 
-/* 4. CSS Flexbox & Hamburger Navigation Logic */
+/* 4. Flexbox & Navigasi */
 #nav-menu-container {
   display: flex;
   transition: all 0.3s ease-in-out;
 }
 
-/* 5. CSS MEDIA QUERIES (PENYESUAIAN UKURAN LAYAR) */
-/* ==========================================
-   STYLING HEADER POJOK KANAN ATAS
-   ========================================== */
-
-/* Efek tombol aktif saat ditekan pada layar sentuh HP */
 header button {
   -webkit-tap-highlight-color: transparent;
 }
@@ -52,25 +38,21 @@ header button:active {
   transform: scale(0.95);
 }
 
-/* Pastikan Tombol Hamburger & Login Sejajar secara Horisontal di HP */
 @media (max-width: 767px) {
   header .flex.items-center.space-x-2 {
     display: flex !important;
     flex-direction: row !important;
     align-items: center !important;
   }
-}
-/* Media Query: Layar HP / Mobile (< 768px) */
-@media (max-width: 767px) {
+
   #nav-menu-container {
-    display: none; /* Sembunyi secara default di HP */
+    display: none;
     flex-direction: column;
     width: 100%;
     padding-top: 0.5rem;
     gap: 0.25rem;
   }
 
-  /* Hamburger Menu ketika Aktif/Ditekan */
   #nav-menu-container.show-mobile-menu {
     display: flex !important;
     animation: fadeInDown 0.25s ease-out forwards;
@@ -83,7 +65,6 @@ header button:active {
     border-radius: 0.5rem;
   }
 
-  /* Adjust Form Row ke Mode Tumpuk (Flex Column) di HP */
   .modal-form-grid {
     display: flex;
     flex-direction: column;
@@ -91,7 +72,6 @@ header button:active {
   }
 }
 
-/* Media Query: Tablet & Desktop (>= 768px) */
 @media (min-width: 768px) {
   #nav-menu-container {
     display: flex !important;
@@ -100,7 +80,7 @@ header button:active {
   }
 
   #hamburger-btn {
-    display: none !important; /* Sembunyikan tombol hamburger di Desktop */
+    display: none !important;
   }
 
   .modal-form-grid {
@@ -110,7 +90,7 @@ header button:active {
   }
 }
 
-/* Safe Area Insets untuk Layar iOS Safari Notch */
+/* Insets Layar Notch iOS Safari */
 .pt-safe {
   padding-top: env(safe-area-inset-top, 0px);
 }
@@ -126,7 +106,7 @@ header button:active {
   scrollbar-width: none;
 }
 
-/* Active State Styles */
+/* Navigasi Aktif */
 .nav-tab.active {
   background-color: #047857;
   color: #ffffff;
@@ -146,7 +126,7 @@ header button:active {
   border-color: #0d9488;
 }
 
-/* Keyframe Animations */
+/* Animasi */
 @keyframes fadeInDown {
   from { opacity: 0; transform: translateY(-8px); }
   to { opacity: 1; transform: translateY(0); }
@@ -170,30 +150,17 @@ header button:active {
   animation: scaleUp 0.2s ease-out forwards;
 }
 
-/* ==========================================
-   PERBAIKAN SCROLLBUTTON KELAS CABERAWIT
-   ========================================== */
-
-/* Pastikan container kelas bisa di-swipe dengan halus di HP */
+/* Horizontal Scroll Baris Kelas Caberawit & ASAD */
 #class-buttons {
   display: flex;
   flex-wrap: nowrap;
   overflow-x: auto;
-  -webkit-overflow-scrolling: touch; /* Momentum scroll halus di iOS/Android */
+  -webkit-overflow-scrolling: touch;
   scroll-snap-type: x mandatory;
 }
 
 #class-buttons button {
   shrink: 0;
-  white-space: nowrap; /* Mencegah teks tombol terlipat */
+  white-space: nowrap;
   scroll-snap-align: start;
-}
-
-/* Hilangkan scrollbar bawaan browser agar tampilan bersih */
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
 }
